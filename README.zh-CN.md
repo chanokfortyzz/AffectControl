@@ -15,6 +15,8 @@ AffectControl 是一个与具体 Agent 框架无关的研究 Harness，用于研
 - benchmark、敏感性与校准指标工具。
 
 > 当前状态：研究原型。不声称类人情感、意识或心理学等价性。
+> **证据状态：** 当前只有工程框架与合成诊断证据；尚无控制策略标定、真实长时程验证、与强 baseline 的正式比较或同行评审结果。详见 [证据状态](docs/evidence-status.zh-CN.md)、[相关工作](docs/related-work.zh-CN.md) 与 [评估路线图](docs/evaluation-roadmap.zh-CN.md)。
+
 
 ## 研究问题
 
