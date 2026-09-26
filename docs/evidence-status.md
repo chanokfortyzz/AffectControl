@@ -34,3 +34,7 @@ What does **not** exist yet:
 | E5 | peer-reviewed mechanistic/theoretical claim | not done |
 
 No claim in the repository should imply a level above the evidence currently available.
+
+## 2026-09-27 stronger synthetic baselines
+
+E1 now includes a workflow-shaped trace runner and static priority, EDF, urgency-only, and integrated-affect scheduler baselines. The first 200-episode diagnostic does **not** favor the affective policy on deadline misses: urgency-only is better. This is useful falsification pressure, but it still does not raise the project to E2 because the policy is uncalibrated and the trace distribution is authored by this project.

@@ -34,3 +34,7 @@ AffectControl 目前是一个**工程与实验框架**，不是已经验证的�
 | E5 | 同行评审的机制/理论主张 | 未完成 |
 
 仓库中的任何表述都不应该超过当前证据等级。
+
+## 2026-09-27 更强的合成 baseline
+
+E1 现在加入了工作流形态的事件轨迹，以及 static priority、EDF、urgency-only、integrated affect 四种 scheduler baseline。首轮 200 episode 诊断在 deadline miss 上**并不支持** affective policy：urgency-only 更好。这提高了可证伪性，但仍不足以升级为 E2，因为策略没有标定，轨迹分布也仍由本项目自行设计。
