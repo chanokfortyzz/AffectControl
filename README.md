@@ -15,6 +15,8 @@ The project is intentionally narrower than a full agent framework. It provides:
 - benchmark and calibration utilities.
 
 > Status: research prototype. It does not claim human-like emotion, consciousness, or validated psychological equivalence.
+> **Evidence status:** engineering framework + synthetic diagnostic evidence only. No calibrated policy, realistic long-horizon validation, formal strong-baseline comparison, or peer-reviewed result yet. See [Evidence Status](docs/evidence-status.md), [Related Work](docs/related-work.md), and [Evaluation Roadmap](docs/evaluation-roadmap.md).
+
 
 ## Research question
 
