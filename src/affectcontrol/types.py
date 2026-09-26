@@ -69,7 +69,7 @@ class ControlBias:
     def asdict(self) -> dict[str, Any]: return asdict(self)
 
 class TaskStatus(str, Enum):
-    QUEUED="queued"; RUNNING="running"; PAUSED="paused"; DONE="done"; FAILED="failed"; CANCELLED="cancelled"
+    QUEUED="queued"; RUNNING="running"; PAUSED="paused"; BLOCKED="blocked"; DONE="done"; FAILED="failed"; CANCELLED="cancelled"
 
 @dataclass(slots=True)
 class TaskSpec:

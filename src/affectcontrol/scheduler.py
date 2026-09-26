@@ -32,8 +32,13 @@ class SchedulerMetrics:
 
 class AffectiveScheduler:
     """Small deterministic lifecycle scheduler for experiments and adapters."""
-    def __init__(self, config: SchedulerConfig|None=None, *, use_affect: bool=True):
-        self.config=config or SchedulerConfig(); self.use_affect=use_affect
+    def __init__(self, config: SchedulerConfig|None=None, *, strategy: str="affective", use_affect: bool|None=None):
+        if use_affect is not None:
+            strategy="affective" if use_affect else "static"
+        if strategy not in {"affective","static","edf","urgency"}:
+            raise ValueError("strategy must be affective, static, edf, or urgency")
+        self.config=config or SchedulerConfig(); self.strategy=strategy
+        self.use_affect=(strategy=="affective")
         self.tasks: dict[str,TaskRecord]={}; self.current_id: str|None=None; self.now_s=0.0
         self.metrics=SchedulerMetrics(); self._missed:set[str]=set(); self._preempt_times:list[float]=[]; self._override_complied:set[str]=set()
     def add_task(self,spec:TaskSpec,control:ControlBias|None=None):
@@ -45,6 +50,28 @@ class AffectiveScheduler:
         self.tasks[spec.task_id]=rec
         if spec.deadline_s is not None: self.metrics.deadline_tasks+=1
         return rec
+    def revise_task(self,task_id:str,*,duration_delta_s:float=0.0,deadline_s:float|None=None,base_priority:str|None=None):
+        rec=self.tasks[task_id]
+        if rec.status in {TaskStatus.DONE,TaskStatus.FAILED,TaskStatus.CANCELLED}: return rec
+        if duration_delta_s:
+            rec.remaining_s=max(0.0,rec.remaining_s+float(duration_delta_s))
+        if deadline_s is not None: rec.spec.deadline_s=float(deadline_s)
+        if base_priority is not None: rec.spec.base_priority=base_priority
+        return rec
+    def block_task(self,task_id:str):
+        rec=self.tasks[task_id]
+        if rec.status==TaskStatus.RUNNING: self.current_id=None
+        if rec.status not in {TaskStatus.DONE,TaskStatus.FAILED,TaskStatus.CANCELLED}: rec.status=TaskStatus.BLOCKED
+        return rec
+    def unblock_task(self,task_id:str):
+        rec=self.tasks[task_id]
+        if rec.status==TaskStatus.BLOCKED: rec.status=TaskStatus.QUEUED
+        return rec
+    def cancel_task(self,task_id:str):
+        rec=self.tasks[task_id]
+        if self.current_id==task_id: self.current_id=None
+        if rec.status not in {TaskStatus.DONE,TaskStatus.FAILED}: rec.status=TaskStatus.CANCELLED
+        return rec
     def update_control(self,task_id:str,control:ControlBias):
         rec=self.tasks[task_id]; rec.control=control
         if control.should_interrupt and rec.interrupt_requested_at_s is None: rec.interrupt_requested_at_s=self.now_s
@@ -54,13 +81,38 @@ class AffectiveScheduler:
         slack=d-self.now_s-rec.remaining_s
         if slack<=0: return 1.0
         return clamp(1.0-slack/max(self.config.deadline_horizon_s,1e-9))
+    def _priority_value(self, rec:TaskRecord):
+        p=rec.control.effective_priority if self.strategy=="affective" else rec.spec.base_priority
+        return (3-RANK.get(p,2))/3.0
     def _score(self,rec:TaskRecord):
-        p=rec.control.effective_priority if self.use_affect else rec.spec.base_priority
-        priority=(3-RANK.get(p,2))/3.0
-        affect=rec.control.drive if self.use_affect else 0.0
+        priority=self._priority_value(rec)
+        if self.strategy=="static":
+            return priority
+        if self.strategy=="edf":
+            if rec.spec.deadline_s is None:
+                return 0.05*priority
+            ttd=max(0.0,rec.spec.deadline_s-self.now_s)
+            edf=1.0/(1.0+ttd/max(self.config.deadline_horizon_s,1e-9))
+            return edf+0.05*priority
+        if self.strategy=="urgency":
+            urgency=clamp(rec.spec.metadata.get("urgency_score",0.0))
+            return 0.85*urgency+0.15*priority
+        affect=rec.control.drive
         score=self.config.priority_weight*priority+self.config.affect_weight*affect+self.config.deadline_weight*self._deadline_pressure(rec)
         if self.current_id and rec.spec.task_id!=self.current_id: score-=self.config.switch_penalty
         return score
+    def _should_preempt(self,best:TaskRecord,current:TaskRecord):
+        if not current.spec.preemptible or best.spec.task_id==current.spec.task_id:
+            return False
+        if self.strategy=="static":
+            return RANK.get(best.spec.base_priority,2) < RANK.get(current.spec.base_priority,2)
+        if self.strategy=="edf":
+            bd,cd=best.spec.deadline_s,current.spec.deadline_s
+            return bd is not None and (cd is None or bd < cd)
+        if self.strategy=="urgency":
+            return clamp(best.spec.metadata.get("urgency_score",0.0)) >= 0.75 and self._score(best)>self._score(current)
+        margin=self._score(best)-self._score(current)
+        return best.control.should_interrupt and margin>=self.config.preempt_margin
     def _eligible(self): return [r for r in self.tasks.values() if r.status in {TaskStatus.QUEUED,TaskStatus.PAUSED}]
     def _best(self):
         rows=self._eligible()
@@ -98,10 +150,8 @@ class AffectiveScheduler:
         best=self._best()
         if current is None or current.status!=TaskStatus.RUNNING:
             if best: self._switch_to(best)
-        elif best and current.spec.preemptible:
-            margin=self._score(best)-self._score(current)
-            if self.use_affect and best.control.should_interrupt and margin>=self.config.preempt_margin:
-                self._switch_to(best,preempt=True); current=self.tasks[self.current_id]
+        elif best and self._should_preempt(best,current):
+            self._switch_to(best,preempt=True); current=self.tasks[self.current_id]
         current=self.tasks.get(self.current_id) if self.current_id else None
         if current and current.status==TaskStatus.RUNNING:
             current.remaining_s=max(0.0,current.remaining_s-dt); self.now_s+=dt

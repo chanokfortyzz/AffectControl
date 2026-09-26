@@ -54,3 +54,26 @@ PYTHONPATH=src python benchmarks/sensitivity.py
 - sensitivity 或置信区间。
 
 现阶段 benchmark 的主要用途是发现工程回归与参数敏感性，为后续更严格实验做准备。
+
+## 工作流形态的长时程诊断
+
+`long_horizon_compare.py` 会回放任务到达、需求修改、阻塞/解除阻塞、过期任务取消、用户显式 override、deadline 更新、暂停恢复和完成等事件，并在完全相同的轨迹上比较：静态优先级、EDF、urgency-only 和 integrated affective control。
+
+```bash
+python benchmarks/long_horizon_compare.py --episodes 200 --seed 41
+```
+
+2026-09-27 的 200 episode 诊断点估计如下（脚本本身还会输出 95% bootstrap 区间）：
+
+| 策略 | Deadline miss | Override compliance | Wrong preemption | Thrashing |
+|---|---:|---:|---:|---:|
+| static | 0.400 | 0.000 | 0.000 | 0.000 |
+| EDF | 0.213 | 1.000 | 0.613 | 0.675 |
+| urgency-only | **0.200** | 1.000 | 0.000 | 0.000 |
+| affective | 0.298 | 1.000 | 0.000 | 0.000 |
+
+这**不是** AffectControl 优于 baseline 的证据。当前轨迹中 urgency-only 的 deadline 结果最好；EDF 改善 deadline，但出现大量错误抢占和抖动；当前 affective policy 则以部分 deadline 表现换取更少的无效切换。它仍然只是半合成诊断，不是外部效度结果。
+
+## 标定数据分离
+
+`calibration_split.py` 只在训练分区上拟合阈值，冻结后才在 held-out 测试分区报告 Brier/ECE 和阈值指标，避免在最终测试样本上挑选 interrupt threshold。

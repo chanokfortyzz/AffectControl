@@ -54,3 +54,41 @@ Do not report a single benchmark number without also reporting:
 - sensitivity or confidence intervals.
 
 The current benchmark is designed to catch engineering regressions and expose parameter sensitivity before larger experiments are built.
+
+## Workflow-shaped long-horizon diagnostic
+
+`long_horizon_compare.py` replays task arrival, requirement revision, blocked/unblocked work, cancellation of stale work, explicit user overrides, deadline changes, pause/resume and completion. It compares four scheduler strategies on the exact same traces:
+
+- static priority;
+- earliest-deadline-first (EDF);
+- urgency-only;
+- integrated affective control.
+
+Run:
+
+```bash
+python benchmarks/long_horizon_compare.py --episodes 200 --seed 41
+```
+
+A 200-episode diagnostic run on 2026-09-27 produced the following point estimates (95% bootstrap intervals are emitted by the script):
+
+| Strategy | Deadline miss | Override compliance | Wrong preemption | Thrashing |
+|---|---:|---:|---:|---:|
+| static | 0.400 | 0.000 | 0.000 | 0.000 |
+| EDF | 0.213 | 1.000 | 0.613 | 0.675 |
+| urgency-only | **0.200** | 1.000 | 0.000 | 0.000 |
+| affective | 0.298 | 1.000 | 0.000 | 0.000 |
+
+This is deliberately **not** presented as evidence that AffectControl outperforms the baselines. In this workload, urgency-only has the best deadline result. EDF improves deadlines but over-preempts and thrashes. The current affective policy trades deadline performance for fewer unnecessary switches. These traces are semi-synthetic diagnostics, not external-validity evidence.
+
+## Calibration split
+
+`calibration_split.py` fits a decision threshold on the training partition only, freezes it, then reports Brier/ECE and threshold metrics on the held-out partition. Input CSV schema:
+
+```text
+score,label
+0.82,1
+0.14,0
+```
+
+This exists to prevent choosing an interrupt threshold on the same cases used for reporting test performance.
