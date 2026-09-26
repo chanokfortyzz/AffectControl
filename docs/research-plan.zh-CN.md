@@ -55,7 +55,7 @@ H5：部分“收益”会对阈值/权重高度敏感，因此必须同时报�
 | A | 静态优先级 | 否 | 静态/不可抢占 |
 | B | Rule / Fast | 否 | 仅优先级 |
 | C | 生成式 appraisal | 是 | Integrated |
-| D | Fast/System-One | 是 | Integrated |
+| D | Fast/快速 appraisal | 是 | Integrated |
 | E | 任意 appraisal | 是 | 仅 metadata |
 | F | Integrated state | 是 | 仅 memory，不接 scheduler |
 | G | Integrated state | 是 | 仅 scheduler，不接 memory/reflection |
@@ -143,7 +143,7 @@ D vs E 用于区分 affect-as-control 与 affect-as-representation；F/G 用于�
 - Global Workspace / attention competition；
 - 生成式 Agent 的 persistent memory / reflection；
 - affective action controller；
-- fast calibrated / System-One decision layer；
+- fast calibrated / 快速 appraisal decision layer；
 - preemptive scheduler / durable workflow；
 - multi-agent state 与 concurrency control。
 
@@ -152,3 +152,15 @@ D vs E 用于区分 affect-as-control 与 affect-as-representation；F/G 用于�
 ## 安全不变量
 
 任何 affective state 都不能自动授予权限。learned appraisal 默认只能影响 soft control。
+
+## 预注册与统计效力
+
+任何希望超过 E1 的结果都应：冻结 workload/provider/model 版本、主指标和排除规则；在 test 前定义最小有意义效应量；用模拟或 power analysis 估算配对 episode 数；train 标定、validation 选型、最终 test 只触碰一次；报告效应量和置信区间；保留失败复现与负面消融。
+
+## 候选特征缩减
+
+当前 10 个状态维度只是候选特征，不是固定本体。现有 E1 消融已经显示明显冗余。后续必须比较最小特征集、leave-one-out、降维与 learned feature selection；没有稳定边际贡献的维度应删除，而不是事后解释。
+
+## 学习型策略对比
+
+硬阈值和线性权重只作为 baseline。最低要求是加入只在冻结 train 数据上训练的 supervised interruption policy；条件允许时再加入 contextual bandit/RL 或可复现的 published learned-interruption 方法。

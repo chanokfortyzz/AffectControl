@@ -2,7 +2,7 @@
 
 [中文](policy-parameters.zh-CN.md)
 
-All numerical defaults in AffectControl are **uncalibrated reference priors**. They exist to make the harness runnable and testable, not to encode validated psychological or scheduling constants.
+All numerical values shipped in the config dataclasses are **uncalibrated reference fixtures**. They do not represent recommended defaults. Prefer the explicit `reference_policy()` opt-in for diagnostics; it is tagged `uncalibrated_reference` and warns by default.
 
 ## Parameter groups
 
@@ -10,7 +10,7 @@ All numerical defaults in AffectControl are **uncalibrated reference priors**. T
 
 Controls the deterministic fallback baseline: routine/urgent/immediate urgency, salience, arousal, tension, interruption value, memory value, and punctuation contribution.
 
-These values are intentionally isolated from `RuleProvider` implementation so experiments can replace them without code changes.
+These values are intentionally isolated from `KeywordRuleBaseline` implementation so experiments can replace them without code changes.
 
 ### `StateConfig`
 

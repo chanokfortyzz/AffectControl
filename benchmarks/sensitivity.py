@@ -1,7 +1,7 @@
 from __future__ import annotations
 import json
 from dataclasses import replace
-from affectcontrol import AffectControlHarness, ControlPolicy, ControlPolicyConfig, Event, RuleProvider, StateConfig, StateEngine
+from affectcontrol import AffectControlHarness, ControlPolicy, ControlPolicyConfig, Event, KeywordRuleBaseline, StateConfig, StateEngine, reference_policy
 
 CASES=[
     ("routine work",False),
@@ -13,7 +13,7 @@ CASES=[
 def evaluate(cfg):
     tp=fp=tn=fn=0
     for i,(text,label) in enumerate(CASES):
-        h=AffectControlHarness(RuleProvider(),state_engine=StateEngine(StateConfig(alpha=1.0)),control=ControlPolicy(cfg))
+        h=AffectControlHarness(KeywordRuleBaseline(),state_engine=StateEngine(StateConfig(alpha=1.0)),control=ControlPolicy(cfg))
         got=h.process(Event(text,task_id=f"t{i}"),base_priority="P2")["control"].should_interrupt
         if got and label: tp+=1
         elif got and not label: fp+=1

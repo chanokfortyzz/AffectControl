@@ -1,26 +1,35 @@
 # AffectControl
 
-[中文](README.zh-CN.md) · [Architecture](docs/architecture.md) · [Policy Parameters](docs/policy-parameters.md) · [Integration](docs/integration.md) · [Research Plan](docs/research-plan.md) · [Benchmarks](benchmarks/README.md)
+[中文](README.zh-CN.md) · [Evidence](docs/evidence-status.md) · [Failure Modes](docs/failure-modes.md) · [External Traces](docs/external-trace-schema.md) · [Adapters](docs/adapters.md) · [Research Plan](docs/research-plan.md) · [Benchmarks](benchmarks/README.md)
 
-AffectControl is a framework-neutral research harness for studying **affect and motivation as control variables** in long-horizon agents.
+**Experimental appraisal-control evaluation harness for long-horizon agents.**
 
-The project is intentionally narrower than a full agent framework. It provides:
+> [!WARNING]
+> **This is not a production emotion-agent framework and not a validated psychological model.** Shipped numerical parameters are uncalibrated reference settings. Instantiating reference components without explicit configs emits `UncalibratedReferenceWarning`.
+>
+> **Current synthetic evidence does not support superiority of the integrated affective reference policy.** On the current held-out semi-synthetic workload, urgency-only has lower deadline miss rate (~0.200) than the affective reference policy (~0.299). A simple trained logistic interruption baseline is ~0.222.
+>
+> **Current ablation evidence also does not justify the full 10-dimensional candidate state.** Most leave-one-feature-out runs are indistinguishable from the all-feature configuration on the present synthetic workload. These are negative diagnostic results, not external-validity evidence.
 
-- task/goal-scoped affective state;
-- appraisal provider interfaces;
-- decay and outcome reappraisal;
-- soft control bias for priority, interruption, attention, planning, memory and reflection;
-- a deterministic task-lifecycle scheduler for controlled experiments;
-- process-safe local JSON persistence;
-- benchmark and calibration utilities.
+AffectControl exists to make such hypotheses easy to test and easy to falsify. It supplies replaceable interfaces for appraisal, candidate state features, state dynamics, control policies, scheduling, persistence, external trace replay, calibration, ablation and structured observability.
 
-> Status: research prototype. It does not claim human-like emotion, consciousness, or validated psychological equivalence.
-> **Evidence status:** engineering framework + synthetic diagnostic evidence only. No calibrated policy, realistic long-horizon validation, formal strong-baseline comparison, or peer-reviewed result yet. See [Evidence Status](docs/evidence-status.md), [Related Work](docs/related-work.md), and [Evaluation Roadmap](docs/evaluation-roadmap.md).
+Current evidence level remains **E0–E1**. There is no peer-reviewed result, no realistic long-horizon external validation, and no claim that affective control is better than simpler scheduling baselines.
 
+### What v0.2 changes
+
+- reference parameters now emit runtime warnings instead of looking like validated defaults;
+- the 10 state values are explicitly **candidate features**, selectable through `FeatureMask`;
+- decay/outcome dynamics are replaceable (`DynamicsModel`), not treated as a theory;
+- `IntegratedRuntime` owns harness + scheduler + a shared clock;
+- a supervised logistic interruption baseline and external JSONL trace ingestion are included;
+- `SQLiteStateStore` adds a transactional local backend for larger experiments;
+- structured trace sinks and explicit-immediate audit events are available;
+- `KeywordRuleBaseline` replaces the misleading idea that lexical rules are a dual-process psychological model;
+- experimental integration helpers exist for LangGraph-style graph nodes, OpenAI Agents SDK context, AutoGen-style runs and CrewAI-style flows.
 
 ## Research question
 
-> Does persistent, task-scoped affective/motivational state improve long-horizon agent control when appraisal is coupled to scheduling, memory and attention rather than stored only as metadata?
+> Under what workload distributions, if any, do persistent appraisal-derived control features improve long-horizon agent scheduling, memory allocation or reflection relative to simpler static, urgency-only, deadline-based and learned baselines?
 
 ```text
 Event(task/goal scope)
@@ -67,9 +76,18 @@ pytest -q
 ```
 
 ```python
-from affectcontrol import AffectControlHarness, Event, RuleProvider
+from affectcontrol import (
+    AffectControlHarness, Event, KeywordRuleBaseline, StateEngine,
+    ControlPolicy, MemoryControl, reference_policy,
+)
 
-h = AffectControlHarness(RuleProvider())
+p = reference_policy()  # emits an explicit uncalibrated-reference warning
+h = AffectControlHarness(
+    KeywordRuleBaseline(p.rule),
+    state_engine=StateEngine(p.state),
+    control=ControlPolicy(p.control),
+    memory=MemoryControl(p.memory),
+)
 result = h.process(
     Event("review this today", task_id="review-42"),
     base_priority="P2",
@@ -101,10 +119,18 @@ This is a control invariant, not a learned threshold.
 ## Task/goal-scoped persistent state
 
 ```python
-from affectcontrol import AffectControlHarness, Event, JsonStateStore, RuleProvider
+from affectcontrol import (
+    AffectControlHarness, Event, JsonStateStore, KeywordRuleBaseline,
+    StateEngine, ControlPolicy, MemoryControl, reference_policy,
+)
 
+p = reference_policy()
 store = JsonStateStore("./runtime/affect-state.json")
-h = AffectControlHarness(RuleProvider(), store=store)
+h = AffectControlHarness(
+    KeywordRuleBaseline(p.rule), store=store,
+    state_engine=StateEngine(p.state),
+    control=ControlPolicy(p.control), memory=MemoryControl(p.memory),
+)
 
 h.process(Event("unfinished task A", task_id="A"))
 h.process(Event("routine task B", task_id="B"))
@@ -115,7 +141,7 @@ state_b = h.get_state("B")
 
 `JsonStateStore` serializes local multi-process read/modify/write transitions with a lock plus atomic replace. It is **not** a distributed consensus store. Multi-host deployments should provide a transactional database/event-store adapter.
 
-## State dimensions
+## Candidate state features
 
 | Dimension | Control interpretation |
 |---|---|
@@ -130,21 +156,21 @@ state_b = h.get_state("B")
 | `certainty` | appraisal confidence proxy |
 | `competence` | estimated ability to progress |
 
-State evolution is controlled by `StateConfig`; values decay over time and can be reappraised after outcomes.
+These fields are **candidate experimental features, not a validated ontology**. `FeatureMask` supports minimal and leave-one-out ablations. The current semi-synthetic ablation provides little evidence that most fields independently affect the reported scheduler metrics.
 
 ## Appraisal providers
 
-### `RuleProvider`
+### `KeywordRuleBaseline` (`RuleProvider` compatibility alias)
 
-A transparent deterministic baseline. It includes explicit negation handling such as `not urgent`, `no rush`, `不急`, and `不用马上`. Its constants are configurable through `RuleProviderConfig` and are not presented as calibrated psychology.
+A deliberately crude lexical baseline. It handles a few explicit negations but does **not** provide robust scope parsing, contextual semantics or multi-task interference modeling. It exists as a weak deterministic comparator, not as a fast cognitive model.
 
 ### `MockProvider`
 
 Used for unit tests and controlled ablations.
 
-### `JevProvider`
+### `StructuredAppraisalProvider` and `JevProvider`
 
-A transport-injected adapter for calibrated/System-One-style appraisal backends. Network/auth code is intentionally external.
+`StructuredAppraisalProvider` is vendor-neutral and can wrap a generative LLM, classifier or other structured scorer. `JevProvider` is a specialized adapter for Jev-style bounded probabilistic questions. The repository calls these **fast/structured appraisal providers**, not implementations of Kahneman System 1.
 
 ```python
 from affectcontrol import JevProvider
@@ -256,7 +282,7 @@ Run `pytest -q` to verify the exact current count.
 src/affectcontrol/
 ├── config.py       # all reference policy parameters
 ├── types.py        # events, appraisal, scoped state, tasks
-├── providers.py    # rule/mock/System-One-style appraisal adapters
+├── providers.py    # keyword/mock/structured appraisal adapters
 ├── state.py        # decay and outcome reappraisal
 ├── memory.py       # memory salience + reflection policy
 ├── control.py      # priority/interruption/attention/planning policy

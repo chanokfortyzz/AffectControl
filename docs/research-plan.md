@@ -53,7 +53,7 @@ H5. Parameter-sensitive gains disappear or reverse outside some policy region; t
 | A | Static priority | No | Static/non-preemptive |
 | B | Rule/Fast appraisal | No | Priority only |
 | C | Generative appraisal | Yes | Integrated |
-| D | Fast/System-One appraisal | Yes | Integrated |
+| D | Fast structured appraisal | Yes | Integrated |
 | E | Any appraisal | Yes | Metadata only |
 | F | Integrated state | Yes | Memory only, no scheduling |
 | G | Integrated state | Yes | Scheduling only, no memory/reflection |
@@ -141,7 +141,7 @@ Before novelty claims, maintain a sourced review covering:
 - Global Workspace/attention competition;
 - persistent memory/reflection in generative agents;
 - affective action controllers;
-- fast calibrated/System-One decision layers;
+- fast calibrated appraisal/decision layers;
 - preemptive scheduling and durable workflow systems;
 - multi-agent state/concurrency control.
 
@@ -150,3 +150,22 @@ The paper should distinguish established mechanisms, engineering recombination a
 ## Safety invariant
 
 No affective state grants authorization. Learned appraisal may affect only soft control unless an external policy system explicitly allows more.
+
+## Pre-registration and statistical power
+
+For any result intended beyond E1:
+
+1. freeze the workload version, provider/model versions, primary endpoint and exclusion rules;
+2. choose a minimum effect size worth detecting before test runs;
+3. estimate required paired episodes through simulation/power analysis;
+4. fit/calibrate on train, select on validation, and touch the final test set once;
+5. report effect sizes and confidence intervals, not only p-values or means;
+6. publish failed replications and negative ablations.
+
+## Candidate-feature reduction
+
+The ten current state dimensions are candidate features, not a committed ontology. The present E1 ablation suggests substantial redundancy. Future experiments should compare minimal sets, leave-one-out masks, dimensionality reduction, and learned feature selection. Features with no stable marginal contribution should be removed rather than defended post hoc.
+
+## Learned-policy comparison
+
+Hard thresholds and linear reference weights are baselines. At minimum, compare against a supervised interruption policy trained on frozen train data. Stronger future baselines should include contextual bandit/RL or published learned-interruption approaches where reproducible implementations exist.

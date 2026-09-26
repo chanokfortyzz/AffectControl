@@ -1,12 +1,12 @@
 from __future__ import annotations
 import argparse, json, random
-from affectcontrol import AffectControlHarness, AffectiveScheduler, Event, RuleProvider, TaskSpec
+from affectcontrol import AffectControlHarness, AffectiveScheduler, Event, KeywordRuleBaseline, TaskSpec, reference_policy, StateEngine, ControlPolicy, MemoryControl
 
 def control(h, tid, text, priority="P2", immediate=False):
     return h.process(Event(text, task_id=tid, explicit_user_immediate=immediate), base_priority=priority)["control"]
 
 def one_episode(seed: int, use_affect: bool):
-    rng=random.Random(seed); h=AffectControlHarness(RuleProvider()); s=AffectiveScheduler(use_affect=use_affect)
+    rng=random.Random(seed); p=reference_policy(warn=False); h=AffectControlHarness(KeywordRuleBaseline(p.rule),state_engine=StateEngine(p.state),control=ControlPolicy(p.control),memory=MemoryControl(p.memory)); s=AffectiveScheduler(p.scheduler,use_affect=use_affect)
     bg=TaskSpec("background", "background work", duration_s=rng.randint(28,38), base_priority="P2", metadata={"expected_interrupt":False})
     s.add_task(bg, control(h,"background","background work","P2"))
     urgent_at=rng.randint(6,16); immediate=(seed%2==0); urgent_duration=rng.randint(3,6)

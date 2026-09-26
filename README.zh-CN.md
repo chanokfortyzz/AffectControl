@@ -1,26 +1,35 @@
 # AffectControl
 
-[English](README.md) · [架构](docs/architecture.zh-CN.md) · [策略参数](docs/policy-parameters.zh-CN.md) · [接入](docs/integration.zh-CN.md) · [研究计划](docs/research-plan.zh-CN.md) · [Benchmark](benchmarks/README.zh-CN.md)
+[English](README.md) · [证据状态](docs/evidence-status.zh-CN.md) · [失败模式](docs/failure-modes.zh-CN.md) · [外部轨迹](docs/external-trace-schema.zh-CN.md) · [适配器](docs/adapters.zh-CN.md) · [研究计划](docs/research-plan.zh-CN.md) · [Benchmark](benchmarks/README.zh-CN.md)
 
-AffectControl 是一个与具体 Agent 框架无关的研究 Harness，用于研究：**当情感、动机、兴趣、紧迫度不再只是 metadata，而是真正进入控制回路时，会发生什么。**
+**面向长时程 Agent 的实验性 appraisal-control 评估 Harness。**
 
-它不是完整 Agent 框架，而是提供以下可独立替换的控制组件：
+> [!WARNING]
+> **它不是可直接生产使用的“情感 Agent 框架”，也不是经过验证的心理学模型。** 仓库自带的所有权重、阈值、半衰期都只是未标定 reference settings；未显式传入配置时会抛出 `UncalibratedReferenceWarning`。
+>
+> **当前合成证据并不支持集成 affective reference policy 优于简单 baseline。** 当前 held-out 半合成 workload 中，urgency-only 的 deadline miss 约为 **0.200**，当前 affective reference policy 约为 **0.299**；一个简单监督学习 logistic interruption baseline 约为 **0.222**。
+>
+> **当前消融也没有证明完整 10 维状态是必要的。** 在现有 synthetic workload 上，大多数 leave-one-feature-out 结果与全维配置几乎无差别。这些是负面的诊断结果，不是外部效度证据。
 
-- 按 task / goal 隔离的持续状态；
-- appraisal provider 接口；
-- 状态衰减与结果重评估；
-- 优先级、抢占、注意力、规划、记忆与反思的软控制偏置；
-- 用于可控实验的任务生命周期调度器；
-- 单机多进程安全的 JSON 状态存储；
-- benchmark、敏感性与校准指标工具。
+AffectControl 的目标不是证明“情感一定有用”，而是让这类假设能够被统一比较、消融、校准和证伪。它提供可替换的 appraisal、候选状态特征、状态动力学、控制策略、调度、持久化、外部轨迹回放、标定、消融与结构化观测接口。
 
-> 当前状态：研究原型。不声称类人情感、意识或心理学等价性。
-> **证据状态：** 当前只有工程框架与合成诊断证据；尚无控制策略标定、真实长时程验证、与强 baseline 的正式比较或同行评审结果。详见 [证据状态](docs/evidence-status.zh-CN.md)、[相关工作](docs/related-work.zh-CN.md) 与 [评估路线图](docs/evaluation-roadmap.zh-CN.md)。
+当前证据等级仍是 **E0–E1**：没有同行评审结果，没有真实长时程外部验证，也不声称 affective control 比 urgency / EDF / learned policy 更好。
 
+### v0.2 的结构变化
+
+- 默认 reference 参数会主动告警，不再伪装成合理默认值；
+- 10 个状态量改称**候选实验特征**，可通过 `FeatureMask` 做最小集和 leave-one-out；
+- 衰减/结果重评估改成可替换 `DynamicsModel`，不再被写成理论机制；
+- `IntegratedRuntime` 统一管理 Harness、Scheduler 与同一时钟；
+- 加入监督学习 logistic interruption baseline 和外部 JSONL trace 导入；
+- 加入事务式本地 `SQLiteStateStore`；
+- 加入结构化 trace 与 explicit-immediate 审计事件；
+- 正式名称改为 `KeywordRuleBaseline`，明确它只是粗糙关键词 baseline；
+- 加入 LangGraph 风格节点、OpenAI Agents SDK context、AutoGen 风格 run、CrewAI 风格 Flow 的实验性 helper。
 
 ## 研究问题
 
-> 当快速 appraisal 更新的是“按任务/目标隔离的持续状态”，并且这些状态真正接入调度、记忆和注意力时，能否改善长时程 Agent 控制，相比之下又是否优于只把 affect 存成 metadata？
+> 在哪些 workload 分布下（如果存在），持续的 appraisal-derived control features 能够相对 static、urgency-only、deadline-based 与 learned baseline 改善长时程调度、记忆分配或反思？
 
 ```text
 事件（task / goal scope）
@@ -67,9 +76,18 @@ pytest -q
 ```
 
 ```python
-from affectcontrol import AffectControlHarness, Event, RuleProvider
+from affectcontrol import (
+    AffectControlHarness, Event, KeywordRuleBaseline, StateEngine,
+    ControlPolicy, MemoryControl, reference_policy,
+)
 
-h = AffectControlHarness(RuleProvider())
+p = reference_policy()  # emits an explicit uncalibrated-reference warning
+h = AffectControlHarness(
+    KeywordRuleBaseline(p.rule),
+    state_engine=StateEngine(p.state),
+    control=ControlPolicy(p.control),
+    memory=MemoryControl(p.memory),
+)
 r = h.process(
     Event("今天审查这个方案", task_id="review-42"),
     base_priority="P2",
@@ -101,10 +119,18 @@ assert r["control"].should_interrupt is True
 ## 按 task / goal 隔离的持久状态
 
 ```python
-from affectcontrol import AffectControlHarness, Event, JsonStateStore, RuleProvider
+from affectcontrol import (
+    AffectControlHarness, Event, JsonStateStore, KeywordRuleBaseline,
+    StateEngine, ControlPolicy, MemoryControl, reference_policy,
+)
 
+p = reference_policy()
 store = JsonStateStore("./runtime/affect-state.json")
-h = AffectControlHarness(RuleProvider(), store=store)
+h = AffectControlHarness(
+    KeywordRuleBaseline(p.rule), store=store,
+    state_engine=StateEngine(p.state),
+    control=ControlPolicy(p.control), memory=MemoryControl(p.memory),
+)
 
 h.process(Event("未完成任务 A", task_id="A"))
 h.process(Event("普通任务 B", task_id="B"))
@@ -115,7 +141,7 @@ state_b = h.get_state("B")
 
 `JsonStateStore` 使用锁 + 原子替换，保证**单机多进程**对同一状态文件的 read/modify/write 不互相丢更新。它不是分布式一致性数据库；跨主机多 writer 应换成事务数据库或 event store。
 
-## 状态维度
+## 候选状态特征
 
 | 变量 | 控制含义 |
 |---|---|
@@ -130,23 +156,21 @@ state_b = h.get_state("B")
 | `certainty` | appraisal 解释的确定性代理 |
 | `competence` | 当前 Agent 推进任务的能力估计 |
 
-状态演化由 `StateConfig` 控制，会随时间衰减，也可以依据成功、失败或部分成功重新评估。
+这些变量是**候选实验特征，不是经过验证的心理学本体**。`FeatureMask` 支持最小特征集与 leave-one-out 消融；当前半合成实验几乎没有证明大多数维度对已有调度指标有独立贡献。
 
 ## Appraisal Provider
 
-### `RuleProvider`
+### `KeywordRuleBaseline`（`RuleProvider` 仅保留兼容别名）
 
-透明的确定性 baseline。已经处理 `不急`、`不用马上`、`no rush`、`not urgent` 等否定表达，避免最明显的子串误判。
-
-规则数值全部集中在 `RuleProviderConfig`，只作为 reference priors，不声称经过心理学或行为数据标定。
+这是一个刻意保持简单的词法 baseline。它处理少量显式否定，但**不具备**可靠的否定作用域解析、上下文理解或多任务语义建模；不能把它描述成 双加工心理学模型。
 
 ### `MockProvider`
 
 用于单元测试和严格消融。
 
-### `JevProvider`
+### `StructuredAppraisalProvider` 与 `JevProvider`
 
-用于接快速/可校准的 System-One 类 appraisal 后端。传输、鉴权、密钥都不在库内。
+`StructuredAppraisalProvider` 可接生成式 LLM、分类器或其他结构化 scorer；`JevProvider` 则适配 Jev 风格的 bounded probabilistic questions。仓库统一称其为**快速/结构化 appraisal provider**，不再把实现等同于 Kahneman 的 System 1。
 
 默认策略是严格失败：
 
@@ -266,7 +290,7 @@ Brier/ECE 用于 appraisal 概率输出的校准评估，不代表 control polic
 src/affectcontrol/
 ├── config.py       # 所有参考策略参数
 ├── types.py        # Event / Appraisal / scoped state / task lifecycle
-├── providers.py    # Rule / Mock / System-One 类 appraisal adapter
+├── providers.py    # keyword / mock / structured appraisal adapter
 ├── state.py        # 衰减 + outcome reappraisal
 ├── memory.py       # memory salience + reflection
 ├── control.py      # priority / interrupt / attention / planning

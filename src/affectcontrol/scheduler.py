@@ -1,7 +1,11 @@
 from __future__ import annotations
+import warnings
+from .profiles import UncalibratedReferenceWarning
 from dataclasses import dataclass, field
 from statistics import mean
 from .config import SchedulerConfig
+from .clock import ManualClock
+from .global_context import GlobalControlContext
 from .control import RANK
 from .types import ControlBias, TaskRecord, TaskSpec, TaskStatus, clamp
 
@@ -32,14 +36,15 @@ class SchedulerMetrics:
 
 class AffectiveScheduler:
     """Small deterministic lifecycle scheduler for experiments and adapters."""
-    def __init__(self, config: SchedulerConfig|None=None, *, strategy: str="affective", use_affect: bool|None=None):
+    def __init__(self, config: SchedulerConfig|None=None, *, strategy: str="affective", use_affect: bool|None=None, clock=None, global_context: GlobalControlContext|None=None):
         if use_affect is not None:
             strategy="affective" if use_affect else "static"
-        if strategy not in {"affective","static","edf","urgency"}:
-            raise ValueError("strategy must be affective, static, edf, or urgency")
+        if strategy not in {"affective","static","edf","urgency","learned"}:
+            raise ValueError("strategy must be affective, static, edf, urgency, or learned")
+        if config is None: warnings.warn("AffectiveScheduler is using uncalibrated reference scheduler parameters",UncalibratedReferenceWarning,stacklevel=2)
         self.config=config or SchedulerConfig(); self.strategy=strategy
-        self.use_affect=(strategy=="affective")
-        self.tasks: dict[str,TaskRecord]={}; self.current_id: str|None=None; self.now_s=0.0
+        self.use_affect=(strategy=="affective"); self.clock=clock or ManualClock(0.0); self.global_context=global_context or GlobalControlContext()
+        self.tasks: dict[str,TaskRecord]={}; self.current_id: str|None=None; self.now_s=float(self.clock.now())
         self.metrics=SchedulerMetrics(); self._missed:set[str]=set(); self._preempt_times:list[float]=[]; self._override_complied:set[str]=set()
     def add_task(self,spec:TaskSpec,control:ControlBias|None=None):
         if spec.task_id in self.tasks: raise ValueError(f"duplicate task_id: {spec.task_id}")
@@ -84,23 +89,31 @@ class AffectiveScheduler:
     def _priority_value(self, rec:TaskRecord):
         p=rec.control.effective_priority if self.strategy=="affective" else rec.spec.base_priority
         return (3-RANK.get(p,2))/3.0
+    def _global_adjust(self,rec:TaskRecord,score:float)->float:
+        score += self.global_context.task_adjustment(rec.spec.goal_id)
+        if self.current_id and rec.spec.task_id != self.current_id:
+            score -= clamp(self.global_context.resource_pressure)*self.config.switch_penalty
+        return score
     def _score(self,rec:TaskRecord):
         priority=self._priority_value(rec)
         if self.strategy=="static":
-            return priority
+            return self._global_adjust(rec,priority)
         if self.strategy=="edf":
             if rec.spec.deadline_s is None:
-                return 0.05*priority
+                return self._global_adjust(rec,0.05*priority)
             ttd=max(0.0,rec.spec.deadline_s-self.now_s)
             edf=1.0/(1.0+ttd/max(self.config.deadline_horizon_s,1e-9))
-            return edf+0.05*priority
+            return self._global_adjust(rec,edf+0.05*priority)
         if self.strategy=="urgency":
             urgency=clamp(rec.spec.metadata.get("urgency_score",0.0))
-            return 0.85*urgency+0.15*priority
+            return self._global_adjust(rec,0.85*urgency+0.15*priority)
+        if self.strategy=="learned":
+            learned=clamp(rec.spec.metadata.get("learned_interrupt_score",0.0))
+            return self._global_adjust(rec,0.85*learned+0.15*priority)
         affect=rec.control.drive
         score=self.config.priority_weight*priority+self.config.affect_weight*affect+self.config.deadline_weight*self._deadline_pressure(rec)
         if self.current_id and rec.spec.task_id!=self.current_id: score-=self.config.switch_penalty
-        return score
+        return self._global_adjust(rec,score)
     def _should_preempt(self,best:TaskRecord,current:TaskRecord):
         if not current.spec.preemptible or best.spec.task_id==current.spec.task_id:
             return False
@@ -111,6 +124,8 @@ class AffectiveScheduler:
             return bd is not None and (cd is None or bd < cd)
         if self.strategy=="urgency":
             return clamp(best.spec.metadata.get("urgency_score",0.0)) >= 0.75 and self._score(best)>self._score(current)
+        if self.strategy=="learned":
+            return clamp(best.spec.metadata.get("learned_interrupt_score",0.0)) >= float(best.spec.metadata.get("learned_interrupt_threshold",0.5)) and self._score(best)>self._score(current)
         margin=self._score(best)-self._score(current)
         return best.control.should_interrupt and margin>=self.config.preempt_margin
     def _eligible(self): return [r for r in self.tasks.values() if r.status in {TaskStatus.QUEUED,TaskStatus.PAUSED}]
@@ -154,12 +169,12 @@ class AffectiveScheduler:
             self._switch_to(best,preempt=True); current=self.tasks[self.current_id]
         current=self.tasks.get(self.current_id) if self.current_id else None
         if current and current.status==TaskStatus.RUNNING:
-            current.remaining_s=max(0.0,current.remaining_s-dt); self.now_s+=dt
+            current.remaining_s=max(0.0,current.remaining_s-dt); self.clock.advance(dt); self.now_s=float(self.clock.now())
             if current.remaining_s<=0:
                 current.status=TaskStatus.DONE; current.completed_at_s=self.now_s
                 if current.resume_count>0: self.metrics.resume_successes+=1
                 self.current_id=None
-        else: self.now_s+=dt
+        else: self.clock.advance(dt); self.now_s=float(self.clock.now())
         self._check_deadlines(); return current
     def run_until_idle(self,max_s:float=100000):
         end=self.now_s+max_s
