@@ -1,6 +1,7 @@
 # 策略参数说明
 
-[English](policy-parameters.md)
+
+仓库 config dataclass 中的数值全部是**未标定 reference fixtures**，不是推荐默认值。诊断实验应显式通过 `reference_policy()` opt-in；它带有 `uncalibrated_reference` 状态并默认发出告警。
 
 AffectControl 当前所有默认数值都定义为 **uncalibrated reference priors（未标定参考先验）**。它们的作用是让工程可以运行、测试和做实验，不代表任何已经验证的心理学常数或最优调度参数。
 

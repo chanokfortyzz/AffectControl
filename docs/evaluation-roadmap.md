@@ -13,11 +13,14 @@
 
 Compare at least:
 1. static priority scheduler;
-2. rules + scoped persistent state;
-3. Jev/System-One appraisal + scoped state;
-4. generative-LLM appraisal + scoped state;
-5. explicit VAD first-/second-order dynamics;
-6. isolated affect metadata (no control coupling).
+2. earliest-deadline-first;
+3. urgency-only;
+4. supervised learned interruption;
+5. keyword rules + scoped persistent state;
+6. Jev/fast structured appraisal + scoped state;
+7. generative-LLM appraisal + scoped state;
+8. explicit VAD first-/second-order dynamics;
+9. isolated affect metadata (no control coupling).
 
 Where open-weight access permits, add representation-level steering as a separate family rather than pretending it is the same mechanism.
 
@@ -42,3 +45,11 @@ Run on real or operationally realistic multi-hour workloads with frozen protocol
 ## Phase 5 — paper gate
 
 A paper should only be drafted after Phases 1–3 produce reproducible results. A mechanism/theory claim requires substantially stronger evidence than an engineering-framework paper.
+
+## Statistical design gate
+
+Before E2/E3 reporting, freeze primary endpoints and a minimum meaningful effect size, then estimate episode count with simulation or power analysis. Report paired bootstrap confidence intervals or an appropriate paired model because policies are evaluated on the same traces. Multiple secondary endpoints require correction or explicit exploratory labeling.
+
+## Failure/stop criteria
+
+Do not promote a mechanism hypothesis when a simpler baseline is statistically indistinguishable or better, when gains depend on a narrow parameter setting selected after test inspection, when feature ablations show redundancy, or when effects fail on a second trace source. Negative results remain first-class outputs.

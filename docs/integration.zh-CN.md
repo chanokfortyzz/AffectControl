@@ -24,7 +24,7 @@ event = Event(
 
 ## 3. 接模型前先确定失败语义
 
-建议先用 `RuleProvider` 建立确定性 baseline。接 System-One/校准模型时必须明确模型失败怎么办：
+建议先用 `KeywordRuleBaseline` 建立明确的弱确定性 baseline。接快速/结构化或已标定后端时，必须明确模型失败怎么办：
 
 ```python
 from affectcontrol import JevProvider
@@ -81,3 +81,7 @@ h.outcome("review-43", success=False)
 - 人工/用户 override。
 
 缺少这些信息就无法复现 calibration 与失败分析。
+
+## 推荐：使用 `IntegratedRuntime`
+
+当使用仓库自带 scheduler 时，优先让 `IntegratedRuntime` 统一管理时钟、appraisal/state/control 更新和 scheduler，而不是由调用方手工同步 `ControlBias`。这样可以降低“状态更新了但调度器没更新”的集成错误。

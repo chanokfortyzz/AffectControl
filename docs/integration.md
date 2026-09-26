@@ -24,7 +24,7 @@ Treat `ControlBias` as control advice. Permission, credentials, deployment, dest
 
 ## 3. Choose failure semantics before adding a model
 
-Start with `RuleProvider`. When adding a System-One/calibrated backend, choose what model failure means:
+Start with `KeywordRuleBaseline` as an explicitly weak deterministic comparator. When adding a fast/structured or calibrated backend, choose what model failure means:
 
 ```python
 from affectcontrol import JevProvider
@@ -36,9 +36,13 @@ Do not leave failure behavior implicit.
 ## 4. Persist state if continuity matters
 
 ```python
-from affectcontrol import AffectControlHarness, JsonStateStore
+from affectcontrol import (AffectControlHarness, JsonStateStore, StateEngine,
+    ControlPolicy, MemoryControl, reference_policy)
+p = reference_policy()
 store = JsonStateStore("runtime/state.json")
-h = AffectControlHarness(provider, store=store)
+h = AffectControlHarness(provider, store=store,
+    state_engine=StateEngine(p.state), control=ControlPolicy(p.control),
+    memory=MemoryControl(p.memory))
 ```
 
 The included store supports local multi-process serialization. For distributed systems, implement an adapter backed by a transactional store.
@@ -63,11 +67,15 @@ h.outcome("review-43", success=False)
 
 Outcome reappraisal changes only that scope.
 
-## 7. Use the scheduler only if you need an experimental runtime
+## 7. Prefer `IntegratedRuntime` when using the bundled scheduler
+
+`IntegratedRuntime` owns the shared clock and automatically refreshes `ControlBias` on incoming control events, reducing the risk that callers forget to keep Harness and Scheduler synchronized.
+
+## 8. Use the scheduler only if you need an experimental runtime
 
 The included `AffectiveScheduler` is useful for controlled comparisons. Existing production schedulers can instead consume `ControlBias` through an adapter.
 
-## 8. Log enough to audit behavior
+## 9. Log enough to audit behavior
 
 Record:
 

@@ -22,7 +22,7 @@ The defensible contribution today is not “a new emotion mechanism.” It is:
 1. a reusable control-plane interface for task-scoped appraisal/state/control;
 2. an experimental scaffold for comparing external affective control variants;
 3. a scheduler-level testbed for interruption, deadline, resumption, memory/reflection coupling, and calibration;
-4. a practical place to evaluate whether fast calibrated appraisal (including Jev-like System-One models) adds value over rules, generative appraisal, VAD dynamics, and representation-level alternatives.
+4. a practical place to evaluate whether fast calibrated appraisal (including Jev-like fast structured appraisal models) adds value over rules, generative appraisal, VAD dynamics, and representation-level alternatives.
 
 Novelty should only be claimed after formal empirical comparison.
 

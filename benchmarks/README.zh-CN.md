@@ -77,3 +77,39 @@ python benchmarks/long_horizon_compare.py --episodes 200 --seed 41
 ## 标定数据分离
 
 `calibration_split.py` 只在训练分区上拟合阈值，冻结后才在 held-out 测试分区报告 Brier/ECE 和阈值指标，避免在最终测试样本上挑选 interrupt threshold。
+
+## 学习型 interruption baseline
+
+```bash
+python benchmarks/learned_baseline.py
+```
+
+脚本在 seeds 0–99 上训练一个无第三方依赖的 logistic interruption model，在冻结的 seeds 100–299 上测试。它只是最低限度的监督学习 baseline，不声称达到 SOTA。
+
+当前 held-out 点估计：
+
+| 策略 | Deadline miss | Wrong preemption | Thrashing | Override compliance |
+|---|---:|---:|---:|---:|
+| static | 0.400 | 0.000 | 0.000 | 0.000 |
+| urgency-only | **0.200** | 0.000 | 0.000 | 1.000 |
+| learned logistic | 0.222 | 0.000 | 0.000 | 1.000 |
+| EDF | 0.222 | 0.613 | 0.675 | 1.000 |
+| affective reference | **0.299** | 0.000 | 0.000 | 1.000 |
+
+**警告：** 当前 affective reference policy 在这个 synthetic distribution 上的 deadline miss 明显差于 urgency-only。不得把这些数字引用成“情感控制提升性能”的证据。
+
+## 候选特征消融
+
+```bash
+python benchmarks/feature_ablation.py
+```
+
+它比较全特征、最小候选集以及逐个去掉一个特征的配置。当前 synthetic workload 中大多数配置在已有指标上几乎无差异，因此目前证据反而指向：**10 维设计缺少充分支持，可能存在明显冗余。**
+
+## 外部轨迹
+
+```bash
+python benchmarks/external_trace_runner.py trace.jsonl --strategy urgency
+```
+
+JSONL importer 用于导入外部收集或 benchmark 派生的事件时间线。仅仅“用了外部 trace”不能自动获得外部效度；仍必须记录来源总体、标签、采样、隐私处理与 train/test 划分。

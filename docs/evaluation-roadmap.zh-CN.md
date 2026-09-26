@@ -14,7 +14,7 @@
 至少比较：
 1. 静态优先级调度器；
 2. 规则 + task-scoped persistent state；
-3. Jev/System-One appraisal + scoped state；
+3. Jev/快速结构化 appraisal + scoped state；
 4. 生成式 LLM appraisal + scoped state；
 5. 显式 VAD 一阶/二阶动力学；
 6. affect 仅作为 metadata、完全不进入控制回路。
@@ -42,3 +42,11 @@
 ## Phase 5 — 论文闸门
 
 只有 Phase 1–3 产生可复现实证结果后，才进入论文撰写。若要主张机制或理论贡献，证据要求必须显著高于工程框架论文。
+
+## 统计设计门
+
+进入 E2/E3 报告前，必须冻结主指标和最小有意义效应量，再通过模拟或 power analysis 估算 episode 数。不同策略在同一组 trace 上运行，应使用配对置信区间/配对统计模型。多个次要指标需要多重比较处理，或明确标成探索性分析。
+
+## 失败 / 停止判据
+
+如果简单 baseline 持平或更好、收益只存在于查看 test 后挑出的窄参数区间、特征消融显示冗余、或第二个独立 trace 来源无法复现，就不能把机制假设升级。负面结果必须作为一等实验输出保留。

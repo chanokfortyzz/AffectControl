@@ -92,3 +92,39 @@ score,label
 ```
 
 This exists to prevent choosing an interrupt threshold on the same cases used for reporting test performance.
+
+## Learned interruption baseline
+
+```bash
+python benchmarks/learned_baseline.py
+```
+
+The script trains a dependency-free logistic interruption model on seeds 0–99 and evaluates on frozen seeds 100–299. It is a deliberately modest supervised baseline, not a claim of state-of-the-art learning.
+
+Current held-out point estimates:
+
+| Strategy | Deadline miss | Wrong preemption | Thrashing | Override compliance |
+|---|---:|---:|---:|---:|
+| static | 0.400 | 0.000 | 0.000 | 0.000 |
+| urgency-only | **0.200** | 0.000 | 0.000 | 1.000 |
+| learned logistic | 0.222 | 0.000 | 0.000 | 1.000 |
+| EDF | 0.222 | 0.613 | 0.675 | 1.000 |
+| affective reference | **0.299** | 0.000 | 0.000 | 1.000 |
+
+**Warning:** the current affective reference policy is worse than urgency-only on deadline misses in this synthetic distribution. Do not cite these numbers as evidence that affective control improves performance.
+
+## Candidate-feature ablation
+
+```bash
+python benchmarks/feature_ablation.py
+```
+
+This runs the all-feature configuration, a minimal candidate set, and leave-one-feature-out masks. On the current synthetic workload, most masks are effectively indistinguishable on the reported scheduler metrics. This is evidence of **insufficient support for the 10-dimensional design**, not evidence that every dimension matters.
+
+## External traces
+
+```bash
+python benchmarks/external_trace_runner.py trace.jsonl --strategy urgency
+```
+
+The JSONL importer is intended for externally collected or benchmark-derived event timelines. Merely importing an external trace does not establish external validity; source population, labels, sampling, privacy processing and train/test separation still have to be documented.

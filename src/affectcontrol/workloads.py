@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-import random
+import random, json
+from pathlib import Path
 from typing import Any
 from .harness import AffectControlHarness
 from .scheduler import AffectiveScheduler
@@ -21,8 +22,12 @@ class WorkflowTrace:
 
 class TraceRunner:
     """Replay task arrivals and environment changes against one scheduler."""
-    def __init__(self, harness: AffectControlHarness, scheduler: AffectiveScheduler):
-        self.harness=harness; self.scheduler=scheduler; self._outcomes:set[str]=set()
+    def __init__(self, harness: AffectControlHarness, scheduler: AffectiveScheduler, interrupt_model=None, learned_threshold:float=0.5):
+        self.harness=harness; self.scheduler=scheduler; self._outcomes:set[str]=set(); self.interrupt_model=interrupt_model; self.learned_threshold=float(learned_threshold)
+    def _learned_features(self,appraisal,priority,deadline_s):
+        rank={"P0":1.0,"P1":0.75,"P2":0.5,"P3":0.25}.get(priority,0.5)
+        horizon=0.0 if deadline_s is None else 1.0/(1.0+max(0.0,float(deadline_s)-self.scheduler.now_s)/60.0)
+        return {"urgency":appraisal.urgency,"salience":appraisal.salience,"tension":appraisal.tension,"interrupt_value":appraisal.interrupt_value,"priority":rank,"deadline_pressure":horizon}
     def _control(self, task_id:str, text:str, priority:str, immediate:bool=False):
         result=self.harness.process(Event(text,task_id=task_id,explicit_user_immediate=immediate),base_priority=priority)
         return result["control"], result["appraisal"]
@@ -32,6 +37,8 @@ class TraceRunner:
             priority=str(p.get("priority","P2")); text=str(p.get("text",tid)); immediate=bool(p.get("immediate",False))
             control,appraisal=self._control(tid,text,priority,immediate)
             metadata=dict(p.get("metadata") or {}); metadata["urgency_score"]=appraisal.urgency
+            if self.interrupt_model is not None:
+                metadata["learned_interrupt_score"]=self.interrupt_model.predict_proba(self._learned_features(appraisal,priority,p.get("deadline_s"))); metadata["learned_interrupt_threshold"]=self.learned_threshold
             metadata.setdefault("explicit_override",immediate); metadata.setdefault("expected_interrupt",bool(p.get("expected_interrupt",immediate)))
             spec=TaskSpec(tid,text,float(p.get("duration_s",10)),priority,s.now_s,p.get("deadline_s"),bool(p.get("preemptible",True)),p.get("goal_id"),metadata)
             s.add_task(spec,control)
@@ -87,3 +94,17 @@ def semi_synthetic_workflow(seed:int=0)->WorkflowTrace:
         TraceEvent(56,"arrive","final-check",{"text":"final consistency check before delivery","duration_s":8,"priority":"P1","deadline_s":92,"expected_interrupt":True}),
     ]
     return WorkflowTrace(f"semi-synthetic-{seed}",events,140)
+
+
+def load_jsonl_trace(path, *, name=None, max_runtime_s=3600.0):
+    """Load externally collected event traces. This is an ingestion API, not evidence by itself."""
+    rows=[]
+    for lineno,line in enumerate(Path(path).read_text(encoding="utf-8").splitlines(),1):
+        if not line.strip(): continue
+        try: row=json.loads(line)
+        except json.JSONDecodeError as exc: raise ValueError(f"invalid JSONL at line {lineno}") from exc
+        rows.append(TraceEvent(float(row["at_s"]),str(row["kind"]),str(row["task_id"]),dict(row.get("payload") or {})))
+    return WorkflowTrace(name or Path(path).stem,rows,float(max_runtime_s))
+
+def interrupt_overlay(trace:WorkflowTrace, events:list[TraceEvent], *, name=None):
+    return WorkflowTrace(name or f"{trace.name}+interrupt-overlay",list(trace.events)+list(events),trace.max_runtime_s)
