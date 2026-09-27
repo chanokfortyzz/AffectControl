@@ -128,3 +128,21 @@ python benchmarks/external_trace_runner.py trace.jsonl --strategy urgency
 ```
 
 The JSONL importer is intended for externally collected or benchmark-derived event timelines. Merely importing an external trace does not establish external validity; source population, labels, sampling, privacy processing and train/test separation still have to be documented.
+## Operational-shape interruption overlay
+
+```bash
+python benchmarks/operational_overlay.py sessions/ --overlay-mode explicit --assume-preemptible
+python benchmarks/operational_overlay.py sessions/ --overlay-mode inferred --assume-preemptible
+```
+
+This runner freezes externally supplied task-arrival and duration-proxy traces, then injects one controlled interruption per session. It is intended for a **semi-real pilot** between fully synthetic workloads and full environment benchmarks.
+
+Important limitations:
+
+- no operational/private dataset is bundled in this repository;
+- `--assume-preemptible` is an explicit counterfactual manipulation, not an observed fact;
+- injected interruptions are synthetic conditions;
+- observed wall-clock durations may be proxies rather than active compute time;
+- a small number of sessions does not raise the evidence level by itself.
+
+The output therefore labels itself `not external-validity evidence`.
