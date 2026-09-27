@@ -18,7 +18,7 @@ from .workloads import TraceEvent,WorkflowTrace,TraceRunner,semi_synthetic_workf
 from .statistics import mean_ci95
 from .calibration import fit_threshold,threshold_metrics,calibration_report
 from .scheduler import AffectiveScheduler,SchedulerMetrics
-from .metrics import brier_score,expected_calibration_error
+from .metrics import brier_score,expected_calibration_error,roc_auc_score
 
 
 from .adapters import LangGraphControlNode,OpenAIAgentsContext,apply_to_openai_context,AutoGenControlBridge,CrewAIFlowControlBridge

@@ -146,3 +146,20 @@ Important limitations:
 - a small number of sessions does not raise the evidence level by itself.
 
 The output therefore labels itself `not external-validity evidence`.
+## Frozen-label appraisal comparison
+
+`appraisal_compare.py` compares multiple appraisal providers on the **same frozen binary labels**. Input JSONL:
+
+```json
+{"id":"case-1","label":1,"predictions":{"jev":0.82,"llm":0.71},"latency_ms":{"jev":45,"llm":4200}}
+```
+
+Run:
+
+```bash
+python benchmarks/appraisal_compare.py predictions.jsonl --threshold 0.5
+```
+
+It reports per-provider coverage, Brier score, ECE, AUROC, fixed-threshold confusion metrics, latency/cost summaries, plus paired bootstrap confidence intervals for Brier-score differences on common cases.
+
+This evaluator deliberately does **not** tune thresholds. Use a separate train/validation procedure, freeze the threshold, then run this script on held-out labels.
