@@ -131,3 +131,20 @@ python benchmarks/operational_overlay.py sessions/ --overlay-mode inferred --ass
 - 少量 session 本身不能提升证据等级。
 
 因此结果输出会明确标记为 `not external-validity evidence`。
+## 冻结标签的 appraisal 对比
+
+`appraisal_compare.py` 用**同一组冻结二元标签**比较多个 appraisal provider。输入 JSONL：
+
+```json
+{"id":"case-1","label":1,"predictions":{"jev":0.82,"llm":0.71},"latency_ms":{"jev":45,"llm":4200}}
+```
+
+运行：
+
+```bash
+python benchmarks/appraisal_compare.py predictions.jsonl --threshold 0.5
+```
+
+输出每个 provider 的 coverage、Brier、ECE、AUROC、固定阈值混淆指标、延迟/成本统计，以及只在共同样本上计算的成对 Brier 差异 bootstrap 置信区间。
+
+这个脚本**不会**替你调阈值。阈值必须在独立 train/validation 集上拟合并冻结，然后才允许在 held-out 标签上运行最终比较。
