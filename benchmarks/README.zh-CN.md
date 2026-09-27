@@ -113,3 +113,21 @@ python benchmarks/external_trace_runner.py trace.jsonl --strategy urgency
 ```
 
 JSONL importer 用于导入外部收集或 benchmark 派生的事件时间线。仅仅“用了外部 trace”不能自动获得外部效度；仍必须记录来源总体、标签、采样、隐私处理与 train/test 划分。
+## 真实运行形态 + interruption overlay
+
+```bash
+python benchmarks/operational_overlay.py sessions/ --overlay-mode explicit --assume-preemptible
+python benchmarks/operational_overlay.py sessions/ --overlay-mode inferred --assume-preemptible
+```
+
+这个 runner 会冻结外部提供的任务到达时间与 duration proxy，再给每个 session 注入一个受控 interruption，用于搭建介于“全合成 workload”和“完整真实环境 benchmark”之间的**半真实 pilot**。
+
+必须同时说明：
+
+- 仓库不捆绑任何真实/私有运行数据；
+- `--assume-preemptible` 是明确的反事实实验条件，不是观测事实；
+- interruption 本身是人工注入条件；
+- wall-clock duration 可能只是代理量，不等于 active compute time；
+- 少量 session 本身不能提升证据等级。
+
+因此结果输出会明确标记为 `not external-validity evidence`。
