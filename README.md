@@ -1,6 +1,6 @@
 # AffectControl
 
-[中文](README.zh-CN.md) · [Evidence](docs/evidence-status.md) · [Failure Modes](docs/failure-modes.md) · [External Traces](docs/external-trace-schema.md) · [Adapters](docs/adapters.md) · [Research Plan](docs/research-plan.md) · [Benchmarks](benchmarks/README.md)
+[中文](README.zh-CN.md) · [Evidence](docs/evidence-status.md) · [Failure Modes](docs/failure-modes.md) · [External Traces](docs/external-trace-schema.md) · [Adapters](docs/adapters.md) · [Research Plan](docs/research-plan.md) · [Benchmarks](benchmarks/README.md) · [Stats Plan](docs/statistical-analysis-plan.md)
 
 **Experimental appraisal-control evaluation harness for long-horizon agents.**
 

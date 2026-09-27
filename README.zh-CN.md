@@ -1,6 +1,6 @@
 # AffectControl
 
-[English](README.md) · [证据状态](docs/evidence-status.zh-CN.md) · [失败模式](docs/failure-modes.zh-CN.md) · [外部轨迹](docs/external-trace-schema.zh-CN.md) · [适配器](docs/adapters.zh-CN.md) · [研究计划](docs/research-plan.zh-CN.md) · [Benchmark](benchmarks/README.zh-CN.md)
+[English](README.md) · [证据状态](docs/evidence-status.zh-CN.md) · [失败模式](docs/failure-modes.zh-CN.md) · [外部轨迹](docs/external-trace-schema.zh-CN.md) · [适配器](docs/adapters.zh-CN.md) · [研究计划](docs/research-plan.zh-CN.md) · [Benchmark](benchmarks/README.zh-CN.md) · [统计计划](docs/statistical-analysis-plan.zh-CN.md)
 
 **面向长时程 Agent 的实验性 appraisal-control 评估 Harness。**
 
