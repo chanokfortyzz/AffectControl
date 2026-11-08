@@ -455,3 +455,16 @@ collisions, duplicate records and missing/unsafe sources. The
 Windows Markdown fixture now writes explicit UTF-8. Source
 boundaries: docs/native-s1-sage-continuity-real-audit-2026-11-08.md.
 Research remains E1.
+
+## Historical Sage queue-source gate (2026-11-08)
+
+The read-only sage_bridge_historical_queue.py checked 317 local
+historic queue snapshots: 77 with duplicate card IDs were excluded,
+240 accepted for descriptive provenance. Of the 3 native S1 Sage
+mappings (all have original Outbox blocks), 2 had provider-ID cards,
+only 1 had a card explicitly matching native s1_ref, and 1 had no
+historic card. Two had queued status; zero had an admissible done
+status after source-grain exclusion. Nine tests cover provenance,
+duplicates, and content privacy. See
+docs/sage-bridge-historical-queue-evidence-2026-11-08.md.
+E1 unchanged and no live Sage/S1 writes were performed.
