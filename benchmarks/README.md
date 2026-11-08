@@ -289,3 +289,21 @@ false-negative scenarios. The `OverrideRisk` result now advertises
 its no-future-arrivals assumption and unvalidated external calibration
 status explicitly. Do not deploy it as a real-time risk probability.
 See `docs/override-risk-stress-2026-11-08.md`. Evidence remains E1.
+
+
+## External real historical workload arrivals, without fake deadlines (2026-11-08)
+
+`pwa_arrival_audit.py` ingests two pinned public SWF 2.2 historical
+HPC job logs (KTH and Cornell CTC) from a pinned, checksum-verified
+GitHub mirror. Of 105,599 records, **105,574** have valid recorded
+submit timestamps and positive actual job runtimes. Event-origin
+next-arrival frequency within 60 seconds is **30.59% at KTH** and
+**44.27% at CTC**, whereas uniform-in-time frequency is **4.76%**
+and **10.80%**. The difference demonstrates sampling dependence and
+non-isolated arrivals in these historical *HPC* contexts, not Agent
+task arrival probabilities. A requested runtime/CPU limit is NOT a
+user task-completion deadline; no intervention outcomes or verified
+Agent acceptance were obtained. The two entire raw logs remain
+gitignored. Full provenance, exact file checksums, data quality and
+limitations: `docs/historical-real-arrival-external-audit-2026-11-08.md`.
+Evidence level remains E1.
