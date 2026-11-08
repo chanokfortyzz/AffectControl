@@ -259,3 +259,18 @@ ranking**, without changing comparative baseline strategies, weight
 parameters, or nonpreemptible work. This is a policy-contract bug fix,
 not evidence that AffectControl beats Urgency-only; see
 `docs/explicit-user-override-regression-2026-11-08.md`.
+
+
+## Research-only explicit override deadline conflict projection (2026-11-08)
+
+`affectcontrol.override_risk` projects a potential *incremental*
+deadline miss to the task displaced by a valid explicit user override.
+The `affective` scheduler records conditional per-decision projections
+and exposes **aggregate counters** only in its metrics summary;
+it does **not** change whether the explicit instruction executes.
+Missing deadlines, nonfinite durations or unverifiable assumptions
+are not interpreted as proof of safety. The model is one-processor,
+fixed-work-time and diagnostic only. A deterministic fixed task pair
+showed one newly projected miss and one simulated realized miss.
+See `docs/explicit-override-conflict-projection-2026-11-08.md`.
+Research status: **E1**.
