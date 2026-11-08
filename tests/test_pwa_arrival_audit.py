@@ -27,8 +27,11 @@ def file(tmp_path, lines, *, version="2.2"):
         + "\n".join(lines) + "\n"
     )
     path = tmp_path / "test.swf"
-    path.write_text(content)
-    return path, hashlib.sha256(content.encode()).hexdigest()
+    encoded = content.encode("utf-8")
+    # Windows text-mode writes translate LF to CRLF; the fixture's expected
+    # source digest must be over the bytes actually written on every OS.
+    path.write_bytes(encoded)
+    return path, hashlib.sha256(encoded).hexdigest()
 
 
 def test_swf_float_cpu_and_cleaned_header_accepted(tmp_path):
