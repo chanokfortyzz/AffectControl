@@ -86,3 +86,16 @@ Run this from the research repository, with authorized Mac access:
 
 Then run pytest against tests/test_remote_sage_bridge_audit.py.
 Use a new output path; no existing results are overwritten.
+
+## Cross-platform text transport correction
+
+The initial CI for revision aec8ee9 failed in the Windows
+Python 3.10 and 3.12 jobs, because subprocess text-mode stdin
+tried to encode a Chinese-field source inspector with Windows'
+default CP1252 codec. No production Sage or S1 operation failed.
+The following correction explicitly sets encoding=UTF-8 for
+the local isolated subprocess and the actual SSH subprocess,
+and the source-free test asserts the UTF-8 contract. All 346
+Mac local tests passed again. The new Windows CI must finish
+before remote validation is reported as passing. Earlier failed
+CI artifacts are preserved and not retroactively changed.

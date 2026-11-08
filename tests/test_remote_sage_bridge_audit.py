@@ -147,6 +147,7 @@ def test_sha_field_and_mapping_cardinality_validation(source,mapping,monkeypatch
     push.write_text("VPS_HOST='fake'\nVPS_BRIDGE='/fake'\n",encoding="utf-8")
     sample=module.inspect_local_snapshot(source,mapping)
     def fake_run(args,**kwargs):
+        assert kwargs.get("encoding") == "utf-8"
         return SimpleNamespace(returncode=0,stdout=json.dumps(sample),stderr="")
     monkeypatch.setattr(module.subprocess,"run",fake_run)
     actual=module.audit(db,push)

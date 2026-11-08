@@ -157,7 +157,7 @@ def inspect_local_snapshot(bridge_root, mappings):
     script=_script(mappings)
     process=subprocess.run(
         [sys.executable,"-",str(bridge_root)],input=script,text=True,
-        stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=15,check=False)
+        stdout=subprocess.PIPE,stderr=subprocess.PIPE,encoding="utf-8",timeout=15,check=False)
     if process.returncode:
         raise ValueError("isolated source snapshot program rejected input")
     return json.loads(process.stdout)
@@ -176,7 +176,7 @@ def audit(s1_db, push_script):
         "-o","ServerAliveInterval=4","-o","ServerAliveCountMax=1",
         config["VPS_HOST"],command,
     ],input=_script(mappings),stdout=subprocess.PIPE,stderr=subprocess.PIPE,
-       text=True,timeout=30,check=False)
+       text=True,encoding="utf-8",timeout=30,check=False)
     if proc.returncode!=0:
         # Remote stderr can include confidential host paths/content.
         raise ValueError("read-only VPS SSH source census unavailable")
