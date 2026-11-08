@@ -51,3 +51,15 @@ From the research repo, run:
     uv run --extra dev pytest -q tests/test_e2_evidence_census.py
 
 Use a new output filename each time; the audit does not overwrite evidence.
+
+## Source expansion: archived executor-separated hidden tests
+
+After the first summary-only census, three historical coding tasks
+and six B2/B3 executor runs were found with evaluator-only hidden
+tests and hash-checkable logs. Six isolated reruns found five passes
+and one failure, consistent with the archived hidden outcomes.
+This is stronger evidence for coding task checks than self-reported
+summary flags, but is neither a natural user deadline nor an
+AffectControl-versus-urgency policy trial. Thus there remain zero
+E2-eligible AffectControl task episodes. Full detail is in
+agent-eval-hidden-oracle-recheck-2026-11-08.md in this docs folder.

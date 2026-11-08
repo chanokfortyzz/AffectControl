@@ -352,3 +352,15 @@ cross-system joins, independently judged task outcomes and prospective
 policy allocations were absent. This is missing evidence, NOT a
 failure label. No task content or raw logs leave gitignored storage.
 Details: docs/e2-readiness-data-gate-2026-11-08.md. E1 unchanged.
+
+## Real executor-separated Agent coding-test evidence (2026-11-08)
+
+The agent_eval_hidden_recheck.py auditor checks frozen external-to-
+executor hidden suites and archived public/hidden log hashes, then
+actually reruns hidden tests against isolated copies of six preserved
+coding worktrees. Five hidden suites passed, one failed. The
+individual task programs and logs remain private and outside Git.
+This corrects the overly broad interpretation of the original
+summary-only census: executor-separated code tests DO exist, but
+natural deadlines and AffectControl policy experiments still do not.
+See docs/agent-eval-hidden-oracle-recheck-2026-11-08.md. E1 unchanged.
