@@ -119,3 +119,41 @@ for source-free fixture validation and
 
 The bridge's output is create-only; raw source task content and
 the real provider transcript stay outside Git.
+
+## Additional actual-native-S1 database audit
+
+A separate read-only check of the existing production S1 SQLite
+schema revealed a stronger *S1-to-Sage card mapping* than the earlier
+pseudonymous status-event sample suggested. The native S1 tables
+already include a Sage provider association:
+
+| Native S1 evidence dimension | Observed |
+|---|---:|
+| Native S1 task rows | 9 |
+| Agent execution mappings to Sage provider task IDs | 3 |
+| Provider-reported COMPLETED statuses | 2 |
+| Provider-reported CREATED statuses | 1 |
+| Native tasks with nonempty due_at | 0 |
+| Bus message ID/thread ID metadata attached to these mapped native tasks | 0 |
+| Proven native S1-to-WebClip Bus message joins | **0** |
+
+These mappings are not fabricated; the application itself stores the
+native S1 task ID and Sage provider card ID in its agent_executions
+table. They are, however, **not the same thing** as authenticated
+WebClip Bus message IDs. Neither the provider-reported COMPLETED
+status nor an empty or populated due_at field establishes
+independently accepted real-world completion.
+
+The S1 create/submit code already sends an s1_ref identifier in the
+Sage task request, and the follow-up adapter resolves Sage task
+cards using that reference. The missing association is an **actual
+Bus task-message ID** anchored to the S1 task creation and Sage
+card, with trusted sender provenance and source-bound event proof.
+Adding a second unrelated S1 task ID system would be unnecessary.
+
+benchmarks/native_s1_mapping_audit.py reads the SQLite source only
+with URI mode=ro/query_only, permits no task text or identifiers in
+its JSON output, counts metadata coverage and reports evidence
+limits. The raw production database was not changed, exported or
+added to Git. Five synthetic portable tests guard against accidental
+success-label promotion and invalid join assumptions.

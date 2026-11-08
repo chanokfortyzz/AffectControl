@@ -415,3 +415,16 @@ changed RaceLine worktree; the separate archive-only bridge does
 not claim fresh code success. Nine portable regression tests were
 added. Full caveats: docs/existing-s1-shadow-live-bus-reaudit-2026-11-08.md.
 Research remains E1.
+
+## Native S1 -> Sage provider map is real, Bus message join still absent
+
+The read-only native_s1_mapping_audit.py checked the native S1 SQLite
+schema and found 9 S1 tasks and 3 real S1↔Sage provider task-card
+mappings (2 provider-COMPLETED, 1 CREATED), but zero nonempty native
+due_at fields and zero Bus message/thread IDs attached to those
+mapped tasks. Source status is NOT independent task acceptance.
+This augments, without contradicting, the previously verified
+one historic real **S1 Shadow**↔WebClip Bus transport roundtrip.
+A native S1 task still has no authenticated Bus-message join.
+Details: docs/existing-s1-shadow-live-bus-reaudit-2026-11-08.md.
+No live DB writes. Research remains E1.
