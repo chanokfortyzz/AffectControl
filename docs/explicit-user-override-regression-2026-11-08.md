@@ -78,3 +78,26 @@ To reproduce:
 uv run --extra dev pytest -q tests/test_explicit_override_priority.py
 uv run --extra dev pytest -q
 ```
+
+
+## Preemption deadline tradeoff, disclosed in a fixed simulation
+
+A separate deterministic guardrail scenario has one P0 preemptible
+background task (4 s work, deadline at t=5) and one incoming P3
+task (3 s work, deadline at t=20), arriving at t=1. The only
+manipulation is the authenticated explicit user-immediate flag.
+
+| Scenario | Background done | Incoming done | Preemptions | Deadline misses |
+|---|---:|---:|---:|---:|
+| Explicit flag absent | t=4 | t=7 | 0 | 0 |
+| Explicit flag present | t=7 | t=4 | 1 | 1 |
+
+These are **model-simulated** outcomes under specified deterministic
+durations, not natural external deadlines or real Agent latencies.
+They establish a concrete safety tradeoff: honoring an explicit user
+command can cause a previously timely task to miss its deadline.
+The existing research comparison should therefore report deadline
+misses, displaced task age, override compliance and interruption cost
+together. The desired choice among conflicting user instructions and
+deadlines needs an explicit owner policy; the model must not silently
+claim that override compliance always improves task performance.

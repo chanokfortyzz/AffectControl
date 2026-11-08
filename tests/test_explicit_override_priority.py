@@ -160,3 +160,41 @@ def test_multiple_explicit_commands_follow_queue_order():
     assert s.current_id == "first"
     s.run_until_idle()
     assert s.tasks["first"].completed_at_s < s.tasks["second"].completed_at_s
+
+
+def test_explicit_override_trades_background_deadline_for_user_precedence():
+    """A successful override can increase deadline misses; preserve that guardrail."""
+    policy = reference_policy(warn=False)
+    outcomes = {}
+    for explicit in (False, True):
+        s = AffectiveScheduler(policy.scheduler)
+        s.add_task(
+            TaskSpec("background", "priority zero", 4,
+                     base_priority="P0", deadline_s=5, preemptible=True),
+            ControlBias(effective_priority="P0"),
+        )
+        s.step(1)
+        control = control_for("routine instruction", "P3", explicit)
+        s.add_task(
+            TaskSpec("incoming", "routine instruction", 3,
+                     base_priority="P3", deadline_s=20,
+                     metadata={"explicit_override": explicit,
+                               "urgency_score": 0.3}),
+            control,
+        )
+        s.step(1)
+        s.run_until_idle()
+        outcomes[explicit] = {
+            "preemptions": s.metrics.preemptions,
+            "misses": s.metrics.deadline_misses,
+            "background_done": s.tasks["background"].completed_at_s,
+            "incoming_done": s.tasks["incoming"].completed_at_s,
+        }
+    assert outcomes[False] == {
+        "preemptions": 0, "misses": 0,
+        "background_done": 4.0, "incoming_done": 7.0,
+    }
+    assert outcomes[True] == {
+        "preemptions": 1, "misses": 1,
+        "background_done": 7.0, "incoming_done": 4.0,
+    }
