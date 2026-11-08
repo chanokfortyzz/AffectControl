@@ -364,3 +364,16 @@ This corrects the overly broad interpretation of the original
 summary-only census: executor-separated code tests DO exist, but
 natural deadlines and AffectControl policy experiments still do not.
 See docs/agent-eval-hidden-oracle-recheck-2026-11-08.md. E1 unchanged.
+
+## S1/Bus authenticated event join gate (2026-11-08)
+
+The S1-Bus join audit inspected 202 pseudonymous S1 records and
+two historic Bus messages. No Bus actor identity was verified and
+zero source joins were admitted. The research-only proof verifier
+requires separate intake/S1/Bus HMAC attestations bound to real
+source event IDs, request hash, consistent timestamps and replay
+protection. Seventeen synthetic protocol tests passed including
+forged matches and replay. No synthetic proof is claimed to be a
+real Bus event, no keys were deployed, and no Sage production task
+was changed. See docs/s1-bus-authenticated-join-gate-2026-11-08.md.
+E1 remains.
