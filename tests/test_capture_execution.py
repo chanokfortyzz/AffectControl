@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import sys
 
@@ -29,8 +30,8 @@ def test_real_process_is_measured_without_recording_content(tmp_path):
     assert receipt["deadline_basis"] == "none"
     assert receipt["duration_basis"] == "wallclock_proxy"
     assert receipt["oracle_status"] == "exit-code-only-not-independent-adjudication"
-    assert receipt["stdout_sha256"] == hashlib.sha256(b"private stdout\n").hexdigest()
-    assert receipt["stderr_sha256"] == hashlib.sha256(b"private stderr\n").hexdigest()
+    assert receipt["stdout_sha256"] == hashlib.sha256(("private stdout" + os.linesep).encode()).hexdigest()
+    assert receipt["stderr_sha256"] == hashlib.sha256(("private stderr" + os.linesep).encode()).hexdigest()
     raw = (root / "sessions" / "run-a.jsonl").read_text()
     redacted = (root / "receipts" / "run-a.json").read_text()
     assert "private stdout" not in raw + redacted
