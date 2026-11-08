@@ -340,3 +340,15 @@ This is **externally hosted machine verification of named research
 code tasks**, *not* independent human Agent task acceptance or
 natural deadline/causal intervention evidence. Documentation:
 `docs/named-task-acceptance-pilot-2026-11-08.md`. E1 unchanged.
+
+
+## E2 evidence-readiness census (2026-11-08)
+
+The privacy-reduced e2_evidence_census.py checked local S1 and
+Agent run-summary sources: 202 watcher events, 196 shadow events
+and six run summaries. No complete E2-admissible episodes could
+be demonstrated because naturally sourced task deadlines, trusted
+cross-system joins, independently judged task outcomes and prospective
+policy allocations were absent. This is missing evidence, NOT a
+failure label. No task content or raw logs leave gitignored storage.
+Details: docs/e2-readiness-data-gate-2026-11-08.md. E1 unchanged.
