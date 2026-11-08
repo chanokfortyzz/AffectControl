@@ -190,3 +190,24 @@ Run `agentrx_integrity.py` against the two pinned files described in
 trajectory-to-annotation consistency and pinned SHA256 digests. It does
 **not** treat AgentRx error-localization labels as an AffectControl
 interruption-ground-truth oracle, or report success rate improvements.
+
+
+## Read-only S1 pseudonymous event coverage audit (2026-11-08)
+
+`s1_shadow_audit.py` consumes only the pre-existing, pseudonymized
+S1 observation metadata. Unknown fields (including raw content) are
+rejected, and the report contains no source trace IDs or task text.
+The audit is **not an AffectControl intervention**.
+
+```bash
+python -m benchmarks.s1_shadow_audit --input /path/to/changes.pseudonymous.jsonl
+```
+
+The locally verified 202-row S1 source yielded 17 distinct task
+trace IDs: **6** unambiguous start/terminal status-event spans, **2**
+ambiguous and **9** incomplete. Median status-event interval was
+**419 seconds**, not active task compute time. No independently
+verified acceptance, real deadlines or observed preemption labels
+could be derived; research status remains E1. Full source hash,
+reproducible protocol and limitations are recorded in
+`docs/s1-shadow-evidence-audit-2026-11-08.md`.
