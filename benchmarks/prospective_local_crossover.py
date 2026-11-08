@@ -23,7 +23,7 @@ from affectcontrol import (
 )
 from benchmarks.capture_execution import _write_exclusive, capture
 
-PROTOCOL = "isolated-real-subprocess-crossover-v1"
+PROTOCOL = "isolated-real-subprocess-balanced-crossover-v2"
 TASKS = (
     dict(task_id="core", test_file="tests/test_core.py", priority="P2",
          message="prepare a routine validation report", deadline_s=2.0),
@@ -43,8 +43,8 @@ def canonical(obj):
 
 
 def freeze_plan(pairs=2, seed=20261108, tasks=TASKS):
-    if type(pairs) is not int or not 1 <= pairs <= 6:
-        raise ValueError("pairs must be integer in [1,6]")
+    if type(pairs) is not int or pairs not in (2, 4, 6):
+        raise ValueError("pairs must be even integer 2, 4, or 6 for AB/BA balance")
     if type(seed) is not int:
         raise ValueError("seed must be integer")
     if not 2 <= len(tasks) <= 8:
@@ -70,18 +70,20 @@ def freeze_plan(pairs=2, seed=20261108, tasks=TASKS):
             raise ValueError("assigned deadline must be finite positive")
         checked.append(dict(task))
     rng = random.Random(seed)
-    orders = []
-    for _ in range(pairs):
-        order = list(ARMS)
-        rng.shuffle(order)
-        orders.append(order)
+    first = list(ARMS)
+    rng.shuffle(first)
+    orders = [list(first) if i % 2 == 0 else list(reversed(first))
+              for i in range(pairs)]
     return {
         "protocol": PROTOCOL, "pairs": pairs, "seed": seed,
         "tasks": checked, "arm_orders": orders,
         "primary_descriptive_endpoint":
             "local_pytest_exit_zero_before_experimentally_assigned_deadline",
         "deadline_source": "experimental_assignment_not_observed_user_deadline",
-        "status": "exploratory_E1_not_confirmatory",
+        "status": "exploratory_E1_post_pilot_balance_amendment",
+        "amendment": ("AB/BA alternation added AFTER inspecting the original "
+                      "unbalanced negative exploratory result; not a new "
+                      "independent confirmatory study."),
     }
 
 
@@ -127,6 +129,7 @@ def run(repo, root, *, pairs=2, seed=20261108, tasks=TASKS, runner=None):
         ["git", "rev-parse", "HEAD"], cwd=repo, text=True
     ).strip()
     plan["source_git_sha"] = head
+    plan["runner_script_sha256"] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     root = Path(root)
     if root.exists():
         raise FileExistsError("experiment root exists; no rerun/overwrite")

@@ -14,7 +14,10 @@ def test_frozen_plan_deterministic_and_has_conspicuous_limits():
     assert first == freeze_plan(pairs=4, seed=42)
     assert len(first["arm_orders"]) == 4
     assert all(sorted(order) == ["affective", "urgency"] for order in first["arm_orders"])
-    assert first["status"] == "exploratory_E1_not_confirmatory"
+    assert first["arm_orders"][0] == first["arm_orders"][2]
+    assert first["arm_orders"][1] == first["arm_orders"][3]
+    assert first["arm_orders"][0] == list(reversed(first["arm_orders"][1]))
+    assert first["status"] == "exploratory_E1_post_pilot_balance_amendment"
     assert first["deadline_source"] == "experimental_assignment_not_observed_user_deadline"
 
 
@@ -45,8 +48,8 @@ def test_one_pair_mock_processes_are_exploratory_only(tmp_path):
         return {"result": "exited", "exit_code": 0, "trace_sha256": "f" * 64}
     root = tmp_path / "fresh"
     project = Path(__file__).resolve().parents[1]
-    result = run(project, root, pairs=1, tasks=TASKS[:2], runner=fake_capture)
-    assert len(calls) == 4
+    result = run(project, root, pairs=2, tasks=TASKS[:2], runner=fake_capture)
+    assert len(calls) == 8
     assert result["n_independent_project_lineages"] == 1
     assert result["independent_outcome_acceptance"] is None
     assert result["evidence_level"] == "E1"
@@ -55,16 +58,18 @@ def test_one_pair_mock_processes_are_exploratory_only(tmp_path):
     frozen = (root / "frozen-plan.json").read_bytes()
     assert hashlib.sha256(frozen).hexdigest() == result["frozen_plan_sha256"]
     assert all(command[1][2] == "pytest" for command in calls)
-    assert sorted(t["strategy"] for t in result["trials"]) == ["affective", "urgency"]
+    assert sorted(t["strategy"] for t in result["trials"]) == ["affective", "affective", "urgency", "urgency"]
+    assert result["arm_orders"][0] == list(reversed(result["arm_orders"][1]))
+    assert len(result["trials"]) == 4
     with pytest.raises(FileExistsError):
-        run(project, root, pairs=1, tasks=TASKS[:2], runner=fake_capture)
-    assert len(calls) == 4
+        run(project, root, pairs=2, tasks=TASKS[:2], runner=fake_capture)
+    assert len(calls) == 8
 
 
 def test_unapproved_test_command_cannot_be_run(tmp_path):
     project = Path(__file__).resolve().parents[1]
     with pytest.raises(ValueError, match="allowlist"):
-        run(project, tmp_path / "fresh", pairs=1,
+        run(project, tmp_path / "fresh", pairs=2,
             tasks=[TASKS[0], dict(TASKS[1], test_file="etc/passwd")],
             runner=lambda *args, **kwargs: None)
     assert not (tmp_path / "fresh").exists()
