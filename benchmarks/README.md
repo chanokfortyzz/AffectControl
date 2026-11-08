@@ -321,3 +321,22 @@ Windows-failed** historic SWF-test commit, and the subsequent
 *automated repository tests*, **not** human acceptance of Agent tasks,
 user completion deadlines, or causal scheduler outcomes. See
 `docs/github-ci-evidence-audit-2026-11-08.md`. E1 unchanged.
+
+
+## Named-task machine checks on GitHub runners (2026-11-08)
+
+`task_acceptance_spec.json` fixes two narrow research-code test
+contracts: the explicit user override's safety behavior (3 selected
+tests), and SWF source-byte integrity (2 selected tests).
+`task_acceptance.py` executes only those frozen selectors and emits
+a case/commit/contract SHA256-pinned JUnit receipt. A dedicated
+GitHub Actions workflow executes both cases on Ubuntu and Windows.
+The separate verifier checks JUnit hashes, exact frozen test selection,
+revision and recorded outcomes. Local preflight of 5 selected checks
+and 8 receipt tests succeeded. External GitHub job and artifact
+verification must be performed before claiming remote execution.
+
+This is **externally hosted machine verification of named research
+code tasks**, *not* independent human Agent task acceptance or
+natural deadline/causal intervention evidence. Documentation:
+`docs/named-task-acceptance-pilot-2026-11-08.md`. E1 unchanged.

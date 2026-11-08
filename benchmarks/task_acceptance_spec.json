@@ -1,0 +1,23 @@
+{
+  "schema": "affectcontrol-task-acceptance-contract-v1",
+  "evidence_scope": "automated_tests_of_named_research_tasks_only",
+  "deadline_basis": "none",
+  "independent_human_acceptance": null,
+  "cases": {
+    "override-contract": {
+      "purpose": "User immediate flag must reach scheduler, protect nonpreemptible tasks, and reject metadata spoofing",
+      "nodeids": [
+        "tests/test_explicit_override_priority.py::test_end_to_end_trace_user_immediate_flag_reaches_scheduler",
+        "tests/test_explicit_override_priority.py::test_nonpreemptible_background_remains_protected",
+        "tests/test_explicit_override_priority.py::test_spoofed_metadata_without_real_control_override_is_not_hard_override"
+      ]
+    },
+    "swf-byte-integrity": {
+      "purpose": "Source-byte SHA validation must be platform independent and reject tampering",
+      "nodeids": [
+        "tests/test_pwa_arrival_audit.py::test_swf_float_cpu_and_cleaned_header_accepted",
+        "tests/test_pwa_arrival_audit.py::test_checksum_mismatch_fails_closed"
+      ]
+    }
+  }
+}
