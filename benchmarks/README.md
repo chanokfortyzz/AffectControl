@@ -388,3 +388,17 @@ authenticated cross-source joins. Positive tests are synthetic.
 Independent intake/S1/Bus key custody and prospective source writers
 are not installed. See the v3 origin-bound protocol document.
 Evidence remains E1.
+
+## Real local process with source-bound staging event records (2026-11-08)
+
+The opt-in prospective_origin_lab.py executes a real, fixed unit-test
+subprocess, registering its task token and request digest BEFORE
+execution, preserving a hashed local process receipt, and writing
+two v3 source-format staging events with HMAC proofs. A separate
+read-only verifier rejects altered event status, proof data and
+receipt bytes; nine tests cover the executed pipeline and tampering.
+This is a **local staging proof-of-flow**, not actual S1 or Sage
+Bus production events. A single lab controller has all test keys,
+so no independent production key custody is proven. See
+docs/actual-local-origin-bound-process-pilot-2026-11-08.md.
+E1 remains.
