@@ -56,3 +56,44 @@ Nine portable synthetic tests include exact matches, missing current card, nonem
 5. Separately capture user-provided deadlines at intake and independent outcome acceptance. None was established by this source census.
 
 **Nothing in this work changes the live native S1 schema, Sage agent cards, WebClip Bus state, user task dispatch or existing result files.** The draft AffectControl PR remains research-only; E1 evidence level stays unchanged.
+
+## Additional original outbox source validates local S1 submission
+
+A subsequent read-only comparison against the original
+04-MAC_OUTBOX.md shows that all THREE native S1-to-Sage provider
+mappings have exactly one local Bridge request block of type
+新任务请求（来自 S1） matching BOTH the native s1_ref and
+the proposed TASK-S1 provider ID.
+
+| Evidence stage | Real observed count |
+|---|---:|
+| Native S1/Sage provider mappings | 3 |
+| Exact native-ID AND Sage-provider-ID outbox request matches | 3 |
+| Nonempty exact-ID result files | 2 |
+| Mapped tasks present in current Sage card and watchdog | 0 |
+| Verified WebClip Bus message links | 0 |
+| Independent user task outcome acceptance | unavailable |
+
+These original Outbox blocks were dated October 8-9, 2026.
+Their task descriptions and identifiers are kept private.
+The audit emits only aggregate counts and a source-file SHA256.
+
+A local Outbox entry proves only that S1 wrote a request to its
+local submission file. It does NOT prove Sage read it, accepted it,
+created a card, ran the work, or emitted an actual WebClip Bus
+message ID. The two archived nonempty result files are separate
+downstream evidence, not an independent acceptance oracle.
+
+The parser rejects duplicates, unsafe proposed task IDs,
+mismatched native/provider IDs, and unrelated completion-message
+blocks. If the optional outbox path is omitted, source coverage
+is recorded as not checked (null), never silently zero.
+
+## Windows CI fixture correction
+
+The initial cross-platform CI for commit 4b637e0 failed its
+nine new Windows tests because the test fixture wrote a Markdown
+file with Chinese punctuation using Python's platform-default
+CP1252 codec. The fixture now explicitly uses UTF-8 for writes
+and reads. The full Windows CI re-run is required before claiming
+remote confirmation. The actual native S1/Sage sources are unchanged.

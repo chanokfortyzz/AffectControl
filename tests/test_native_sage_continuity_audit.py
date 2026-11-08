@@ -31,7 +31,7 @@ def evidence(tmp_path):
         "### [TASK-S1-AAA-20261108-0001]\n"
         "- **s1_ref**：native1\n- **状态**：done\n"
         "### [TASK-OTHER-ID]\n"
-        "- **状态**：ready\n"
+        "- **状态**：ready\n", encoding="utf-8"
     )
     state=tmp_path/"state.json"
     state.write_text(json.dumps({"tasks":{
@@ -77,7 +77,7 @@ def test_empty_delivery_not_reported_as_accepted(evidence):
 
 def test_card_ref_mismatch_does_not_create_exact_provenance(evidence):
     db,queue,state,results=evidence
-    queue.write_text(queue.read_text().replace("native1","other-task"))
+    queue.write_text(queue.read_text(encoding="utf-8").replace("native1","other-task"), encoding="utf-8")
     r=audit(*evidence)
     assert r["coverage"].get("mapped_card_explicit_s1_ref_matches",0)==0
     assert r["coverage"]["mapped_card_s1_ref_conflict"]==1
@@ -85,7 +85,7 @@ def test_card_ref_mismatch_does_not_create_exact_provenance(evidence):
 
 def test_duplicate_queue_card_fails_closed(evidence):
     db,queue,state,results=evidence
-    queue.write_text(queue.read_text()+"### [TASK-S1-AAA-20261108-0001]\n")
+    queue.write_text(queue.read_text(encoding="utf-8")+"### [TASK-S1-AAA-20261108-0001]\n", encoding="utf-8")
     with pytest.raises(ValueError,match="duplicate"):
         audit(*evidence)
 
@@ -138,3 +138,111 @@ def test_unmodified_source_files_and_deterministic_report(evidence):
     after=audit(*evidence)
     assert before==after
     assert originals==[x.read_bytes() for x in (db,queue,state)]
+
+
+def _sample_outbox(tmp_path, *, lines=None):
+    content = (
+        "### [2026-11-08 09:00:00 请求：TASK-S1-AAA-20261108-0001]\n"
+        "- **类型**：新任务请求（来自 S1）\n"
+        "- **s1_ref**：native1\n"
+        "- **任务ID（建议）**：TASK-S1-AAA-20261108-0001\n"
+        "- **目标**：some private test task content\n"
+        "\n"
+        "### [2026-11-08 09:01:00 请求：TASK-S1-BBB-20261108-0002]\n"
+        "- **类型**：新任务请求（来自 S1）\n"
+        "- **s1_ref**：native2\n"
+        "- **任务ID（建议）**：TASK-S1-BBB-20261108-0002\n"
+        "### [2026-11-08 09:02:00 请求：TASK-S1-CCC-20261108-0003]\n"
+        "- **类型**：新任务请求（来自 S1）\n"
+        "- **s1_ref**：native3\n"
+        "- **任务ID（建议）**：TASK-S1-CCC-20261108-0003\n"
+    )
+    path = tmp_path / "outbox.md"
+    path.write_bytes((content if lines is None else lines).encode("utf-8"))
+    return path
+
+
+def test_local_outbox_exact_native_and_provider_joint_matches(evidence,tmp_path):
+    from benchmarks.native_sage_continuity_audit import read_outbox
+    path=_sample_outbox(tmp_path)
+    before=path.read_bytes()
+    pairs,digest=read_outbox(path)
+    assert len(pairs)==3 and len(digest)==64
+    row=audit(*evidence,outbox_path=path)
+    assert row["local_outbox_evidence_checked"] is True
+    assert row["local_outbox_s1_request_entries"]==3
+    assert row["coverage"]["matched_native_s1_provider_local_outbox_request"]==3
+    assert row["coverage"].get("native_mapping_without_exact_local_outbox_request",0)==0
+    assert row["local_outbox_delivery_confirmed"] is None
+    assert row["verified_native_s1_to_webclip_message_join_count"]==0
+    assert path.read_bytes()==before
+    assert "some private test task content" not in json.dumps(row)
+    assert "native1" not in json.dumps(row)
+
+
+def test_outbox_missing_request_is_missing_evidence_not_failed_task(evidence,tmp_path):
+    p=_sample_outbox(tmp_path)
+    s=p.read_text(encoding="utf-8")
+    p.write_bytes(s.split("### [2026-11-08 09:02:00")[0].encode("utf-8"))
+    row=audit(*evidence,outbox_path=p)
+    assert row["coverage"]["matched_native_s1_provider_local_outbox_request"]==2
+    assert row["coverage"]["native_mapping_without_exact_local_outbox_request"]==1
+    assert row["independent_task_business_acceptance"] is None
+
+
+def test_outbox_mismatched_native_ref_is_not_joined(evidence,tmp_path):
+    p=_sample_outbox(tmp_path)
+    s=p.read_text(encoding="utf-8").replace("**s1_ref**：native2","**s1_ref**：other")
+    p.write_bytes(s.encode("utf-8"))
+    r=audit(*evidence,outbox_path=p)
+    assert r["coverage"]["matched_native_s1_provider_local_outbox_request"]==2
+    assert r["coverage"]["outbox_provider_id_native_task_conflict"]==1
+
+
+def test_outbox_duplicate_exact_request_fails_closed(evidence,tmp_path):
+    p=_sample_outbox(tmp_path)
+    s=p.read_text(encoding="utf-8")
+    duplicate=s.split("### [2026-11-08 09:01:00")[0]
+    p.write_bytes((s+duplicate).encode("utf-8"))
+    with pytest.raises(ValueError,match="duplicate local"):
+        audit(*evidence,outbox_path=p)
+
+
+def test_outbox_unrelated_message_not_counted_as_submission(evidence,tmp_path):
+    p=_sample_outbox(tmp_path)
+    s=p.read_text(encoding="utf-8")
+    s += (
+        "### [2026-11-08 09:10:00 请求：TASK-S1-AAA-20261108-0001]\n"
+        "- **类型**：完成报告\n"
+        "- **s1_ref**：native1\n"
+        "- **任务ID（建议）**：TASK-S1-AAA-20261108-0001\n"
+    )
+    p.write_bytes(s.encode("utf-8"))
+    r=audit(*evidence,outbox_path=p)
+    assert r["local_outbox_s1_request_entries"]==3
+    assert r["coverage"]["matched_native_s1_provider_local_outbox_request"]==3
+
+
+def test_malformed_or_non_utf8_outbox_source_rejected(evidence,tmp_path):
+    p=_sample_outbox(tmp_path)
+    p.write_bytes(b"\xff\xff")
+    with pytest.raises(ValueError,match="not UTF-8"):
+        audit(*evidence,outbox_path=p)
+
+
+def test_outbox_not_supplied_remains_unknown_not_zero(evidence):
+    row=audit(*evidence)
+    assert row["local_outbox_evidence_checked"] is False
+    assert row["local_outbox_s1_request_entries"] is None
+    assert row["local_outbox_source_sha256"] is None
+
+
+def test_outbox_unsafe_proposed_provider_id_rejected(evidence,tmp_path):
+    p=_sample_outbox(tmp_path)
+    s=p.read_text(encoding="utf-8").replace(
+        "**任务ID（建议）**：TASK-S1-BBB-20261108-0002",
+        "**任务ID（建议）**：../../private"
+    )
+    p.write_bytes(s.encode("utf-8"))
+    with pytest.raises(ValueError,match="safe proposed Sage"):
+        audit(*evidence,outbox_path=p)

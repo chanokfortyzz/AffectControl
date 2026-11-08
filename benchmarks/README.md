@@ -442,3 +442,16 @@ join is established. Nine portable tests cover source conflicts,
 path traversal, result file presence and provenance guardrails.
 See docs/native-s1-sage-continuity-real-audit-2026-11-08.md.
 No source writes or dispatch; research remains E1.
+
+## Native S1/Sage outbox provenance and Windows UTF-8 fix (2026-11-08)
+
+native_sage_continuity_audit.py now optionally checks original
+Sage Bridge Outbox local request blocks against native S1↔Sage
+provider mappings. Actual result: 3/3 exact (native ID, provider
+ID) local submission matches; 2/3 historical nonempty task
+results. No confirmed WebClip message joins or independently
+accepted business-task outcomes. Eight regression tests cover
+collisions, duplicate records and missing/unsafe sources. The
+Windows Markdown fixture now writes explicit UTF-8. Source
+boundaries: docs/native-s1-sage-continuity-real-audit-2026-11-08.md.
+Research remains E1.

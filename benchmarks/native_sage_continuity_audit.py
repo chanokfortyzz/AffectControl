@@ -25,6 +25,8 @@ SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{1,120}$")
 MAX_STATE_BYTES = 20_000_000
 MAX_CARD_BYTES = 20_000_000
 MAX_RESULT_BYTES = 30_000_000
+OUTBOX_HEADER = re.compile(r"(?m)^### \[([^\]\r\n]+)\]")
+OUTBOX_ENTRY_HEADER = re.compile(r"^20\d{2}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} 请求：TASK-")
 
 
 def hash_data(raw):
@@ -62,6 +64,39 @@ def read_state(path: Path):
     return doc["tasks"]
 
 
+def read_outbox(path):
+    """Parse an EXISTING Bridge local outbox, never claim remote delivery."""
+    path = Path(path)
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_CARD_BYTES:
+        raise ValueError("missing/unsafe Sage outbox")
+    raw = path.read_bytes()
+    try:
+        data = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError("outbox is not UTF-8") from exc
+    entries = []
+    parts = OUTBOX_HEADER.split(data)
+    for i in range(1, len(parts) - 1, 2):
+        header, body = parts[i], parts[i + 1]
+        if not OUTBOX_ENTRY_HEADER.match(header):
+            continue
+        fields = {}
+        for line in body.splitlines():
+            match = FIELD.match(line.strip())
+            if match:
+                fields.setdefault(match.group(1).strip(), match.group(2).strip())
+        if fields.get("类型") != "新任务请求（来自 S1）":
+            continue
+        native_id = fields.get("s1_ref")
+        card_id = fields.get("任务ID（建议）")
+        if not isinstance(native_id, str) or not native_id:
+            raise ValueError("S1 outbox request lacks native task reference")
+        if not isinstance(card_id, str) or not SAFE_ID.fullmatch(card_id):
+            raise ValueError("S1 outbox request lacks safe proposed Sage task ID")
+        entries.append((native_id, card_id))
+    return entries, hash_data(raw)
+
+
 def get_mappings(db_path):
     db_path = Path(db_path)
     if db_path.is_symlink() or not db_path.is_file():
@@ -84,10 +119,16 @@ def get_mappings(db_path):
     return mappings
 
 
-def audit(db_path, queue_path, state_path, results_directory):
+def audit(db_path, queue_path, state_path, results_directory, *, outbox_path=None):
     cards = read_cards(queue_path)
     watchdog = read_state(state_path)
     mappings = get_mappings(db_path)
+    outbox_rows, outbox_sha = read_outbox(outbox_path) if outbox_path is not None else (None, None)
+    outbox_counts = Counter(outbox_rows or ())
+    if outbox_rows is not None:
+        for pair, n in outbox_counts.items():
+            if n != 1:
+                raise ValueError("duplicate local S1 request with same mapping in outbox")
     result_root = Path(results_directory)
     if result_root.is_symlink() or not result_root.is_dir():
         raise ValueError("missing or unsafe result directory")
@@ -103,6 +144,15 @@ def audit(db_path, queue_path, state_path, results_directory):
             raise ValueError("same provider task ID ambiguously mapped")
         seen.add(provider_id)
         counts["native_s1_provider_mappings"]+=1
+        if outbox_rows is not None:
+            if outbox_counts.get((native_id, provider_id), 0) == 1:
+                counts["matched_native_s1_provider_local_outbox_request"] += 1
+            else:
+                counts["native_mapping_without_exact_local_outbox_request"] += 1
+            if any(ref == native_id and tid != provider_id for ref, tid in outbox_rows):
+                counts["outbox_native_task_provider_id_conflict"] += 1
+            if any(ref != native_id and tid == provider_id for ref, tid in outbox_rows):
+                counts["outbox_provider_id_native_task_conflict"] += 1
         db_status = db_status or "missing"
         counts["db_status_"+str(db_status)]+=1
         if isinstance(due_at,str) and due_at.strip():
@@ -150,6 +200,10 @@ def audit(db_path, queue_path, state_path, results_directory):
         "nonempty_result_multiset_sha256":hash_data(
             json.dumps(sorted(snapshots),separators=(",",":")).encode()),
         "native_to_sage_provider_mapping_count":len(mappings),
+        "local_outbox_evidence_checked":outbox_rows is not None,
+        "local_outbox_source_sha256":outbox_sha,
+        "local_outbox_s1_request_entries":len(outbox_rows) if outbox_rows is not None else None,
+        "local_outbox_delivery_confirmed":None,
         "verified_native_s1_to_webclip_message_join_count":0,
         "independent_task_business_acceptance":None,
         "natural_deadline_source_authenticated":None,
@@ -159,6 +213,8 @@ def audit(db_path, queue_path, state_path, results_directory):
             "A nonempty result file is a deliverable, not independent "
             "acceptance; an old missing queue/watchdog entry can reflect "
             "archiving/rotation and is not proof task submission failed. "
+             "An Outbox request proves only local request text was saved, not "
+            "a successful push, Sage acceptance or remote execution. "
             "The Sage outbox/card transport and separate WebClip Bus API "
             "have different ID spaces; no Bus-message source join proved."
         ),
@@ -171,9 +227,10 @@ def main():
     p.add_argument("--queue",required=True)
     p.add_argument("--state",required=True)
     p.add_argument("--results",required=True)
+    p.add_argument("--outbox",help="optional existing Sage 04-MAC_OUTBOX.md")
     p.add_argument("--out",required=True)
     args=p.parse_args()
-    r=audit(args.db,args.queue,args.state,args.results)
+    r=audit(args.db,args.queue,args.state,args.results,outbox_path=args.outbox)
     output=Path(args.out)
     output.parent.mkdir(parents=True,exist_ok=True)
     _write_exclusive(output,(json.dumps(r,ensure_ascii=False,indent=2,sort_keys=True)+"\n").encode())
@@ -183,6 +240,8 @@ def main():
         "current_watchdog_tasks":r["current_watchdog_task_count"],
         "coverage":r["coverage"],
         "verified_bus_joins":0,
+        "local_outbox_evidence_checked":r["local_outbox_evidence_checked"],
+        "matched_local_outbox_submissions":r["coverage"].get("matched_native_s1_provider_local_outbox_request",0) if r["local_outbox_evidence_checked"] else None,
     },ensure_ascii=False,indent=2))
 
 
