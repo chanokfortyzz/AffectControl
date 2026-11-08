@@ -97,12 +97,14 @@ def semi_synthetic_workflow(seed:int=0)->WorkflowTrace:
 
 
 def load_jsonl_trace(path, *, name=None, max_runtime_s=3600.0):
-    """Load externally collected event traces. This is an ingestion API, not evidence by itself."""
+    """Fail-closed external trace loading; does not establish external validity."""
+    from .trace_validation import validate_trace
+    raw = Path(path).read_bytes()
+    validate_trace(raw, max_runtime_s=max_runtime_s)
     rows=[]
-    for lineno,line in enumerate(Path(path).read_text(encoding="utf-8").splitlines(),1):
+    for line in raw.decode("utf-8").splitlines():
         if not line.strip(): continue
-        try: row=json.loads(line)
-        except json.JSONDecodeError as exc: raise ValueError(f"invalid JSONL at line {lineno}") from exc
+        row=json.loads(line)
         rows.append(TraceEvent(float(row["at_s"]),str(row["kind"]),str(row["task_id"]),dict(row.get("payload") or {})))
     return WorkflowTrace(name or Path(path).stem,rows,float(max_runtime_s))
 
