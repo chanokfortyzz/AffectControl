@@ -211,3 +211,17 @@ verified acceptance, real deadlines or observed preemption labels
 could be derived; research status remains E1. Full source hash,
 reproducible protocol and limitations are recorded in
 `docs/s1-shadow-evidence-audit-2026-11-08.md`.
+
+
+## Controlled real-process lifecycle audit (2026-11-08)
+
+`task_lifecycle.py` adds a research-only, SHA256-linked and
+monotonic-timestamped task event ledger with `start / pause / resume /
+finish / fail / check` states, linked to actual isolated
+`capture_execution.py` process receipts. A `check` is a **separate
+local subprocess exit**, **not** external independent acceptance.
+Incomplete lifecycles are censored, and duplicate or mismatched
+receipts, forged transitions and nonzero exits labelled successful
+are rejected. See `docs/real-multitask-lifecycle-pilot-2026-11-08.md`
+for the executed two-task interleaving and limitations. Evidence
+remains E1, not a real Agent scheduler policy trial.
