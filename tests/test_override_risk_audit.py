@@ -36,6 +36,8 @@ def test_incremental_deadline_miss_is_quantified_but_not_policy():
     assert r.additional_delay_s == 3
     assert r.newly_projected_deadline_miss is True
     assert r.deadline_basis == "synthetic"
+    assert r.predictive_scope == "conditional_on_no_future_arrivals"
+    assert r.external_calibration_status == "unvalidated"
     assert "sensitive user message" not in str(r.asdict())
 
 

@@ -22,6 +22,8 @@ class OverrideRisk:
     projected_finish_with_override_s: float | None
     additional_delay_s: float | None
     newly_projected_deadline_miss: bool | None
+    predictive_scope: str = "conditional_on_no_future_arrivals"
+    external_calibration_status: str = "unvalidated"
     assumption: str = (
         "One work resource, fixed remaining durations, no other arrivals, "
         "zero switch cost, immediate uninterrupted execution of incoming task. "

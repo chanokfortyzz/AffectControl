@@ -274,3 +274,18 @@ fixed-work-time and diagnostic only. A deterministic fixed task pair
 showed one newly projected miss and one simulated realized miss.
 See `docs/explicit-override-conflict-projection-2026-11-08.md`.
 Research status: **E1**.
+
+
+## Displaced-task risk stress: future arrivals break calibration (2026-11-08)
+
+`override_risk_stress.py` executed **1,536** authored deterministic
+scenarios as **3,072 matched reference scheduler replays**. With
+no further arrivals, the conditional two-task projection agreed with
+the corresponding simulator in all 256 cases. When a third explicit
+task arrived later, precision and recall of **incremental displaced
+deadline misses** fell to 20% in the 1,280 deliberately synthetic
+shifted cases. The code contains reproducible false-positive and
+false-negative scenarios. The `OverrideRisk` result now advertises
+its no-future-arrivals assumption and unvalidated external calibration
+status explicitly. Do not deploy it as a real-time risk probability.
+See `docs/override-risk-stress-2026-11-08.md`. Evidence remains E1.
