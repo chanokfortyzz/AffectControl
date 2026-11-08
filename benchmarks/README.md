@@ -307,3 +307,17 @@ Agent acceptance were obtained. The two entire raw logs remain
 gitignored. Full provenance, exact file checksums, data quality and
 limitations: `docs/historical-real-arrival-external-audit-2026-11-08.md`.
 Evidence level remains E1.
+
+
+## Externally executed CI outcomes are not independent Agent acceptance (2026-11-08)
+
+`github_ci_evidence.py` reads authenticated GitHub Actions REST API
+run/job metadata, pins the repository, full revision hash and exact
+six-OS/Python matrix, rejects incomplete, failed or mismatched inputs,
+and writes a create-only, redacted local evidence report. It has
+verified a **6/6 passed** prior commit, the **4/6 passed and 2/6
+Windows-failed** historic SWF-test commit, and the subsequent
+**6/6 passed** Windows fix commit. These are independently hosted
+*automated repository tests*, **not** human acceptance of Agent tasks,
+user completion deadlines, or causal scheduler outcomes. See
+`docs/github-ci-evidence-audit-2026-11-08.md`. E1 unchanged.
