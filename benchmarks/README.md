@@ -485,3 +485,18 @@ not a provider-signed per-task receipt or a validated WebClip
 Bus message join. See
 docs/direct-vps-sage-bridge-audit-2026-11-08.md.
 E1 unchanged; no Sage production modifications.
+
+## Read-only S1 Outbox to Sage queue intake gap pilot (2026-11-09)
+
+The active Sage VPS queue watcher reads the 02 task queue,
+but the original S1 SageAdapter writes the 04 Outbox. No
+verified automatic consumer path from 04 to 02 was found
+in inspected live router components. A new opt-in staging
+adapter pins the original Outbox as a no-replay baseline,
+validates newly appended S1 task requests, rejects collisions,
+and creates only private, non-dispatchable queue-card copies.
+A real-source-copy pilot with one new synthetic request staged
+one card and left original files unchanged. Thirteen tests
+passed. See docs/sage-outbox-to-queue-staged-intake-2026-11-09.md.
+No production intake receipt or actual Bus message was created.
+AffectControl remains E1.
