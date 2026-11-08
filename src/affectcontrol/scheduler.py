@@ -114,9 +114,28 @@ class AffectiveScheduler:
         score=self.config.priority_weight*priority+self.config.affect_weight*affect+self.config.deadline_weight*self._deadline_pressure(rec)
         if self.current_id and rec.spec.task_id!=self.current_id: score-=self.config.switch_penalty
         return self._global_adjust(rec,score)
+    def _is_explicit_user_override(self,rec:TaskRecord)->bool:
+        # Require BOTH the authenticated control-policy reason and the
+        # user-origin event marker, not arbitrary text/metadata alone.
+        return (
+            self.strategy=="affective"
+            and bool(rec.spec.metadata.get("explicit_override"))
+            and rec.control.should_interrupt
+            and rec.control.effective_priority=="P0"
+            and "explicit_user_immediate_hard_override" in rec.control.reasons
+        )
     def _should_preempt(self,best:TaskRecord,current:TaskRecord):
         if not current.spec.preemptible or best.spec.task_id==current.spec.task_id:
             return False
+        if self.strategy=="affective":
+            # Explicit user command is a hard control override, not a
+            # weighted score adjustment; preserve nonpreemptible tasks.
+            # Once a hard override is running, do not let ordinary
+            # background score changes interrupt it.
+            if self._is_explicit_user_override(current):
+                return False
+            if self._is_explicit_user_override(best):
+                return True
         if self.strategy=="static":
             return RANK.get(best.spec.base_priority,2) < RANK.get(current.spec.base_priority,2)
         if self.strategy=="edf":
@@ -131,6 +150,12 @@ class AffectiveScheduler:
     def _eligible(self): return [r for r in self.tasks.values() if r.status in {TaskStatus.QUEUED,TaskStatus.PAUSED}]
     def _best(self):
         rows=self._eligible()
+        if self.strategy=="affective":
+            overrides=[r for r in rows if self._is_explicit_user_override(r)]
+            if overrides:
+                # FIFO among explicit user commands; never let ordinary
+                # high-scoring tasks hide an explicit command in the queue.
+                return min(overrides,key=lambda r:(r.spec.created_at_s,r.spec.task_id))
         return max(rows,key=lambda r:(self._score(r),-r.spec.created_at_s,r.spec.task_id)) if rows else None
     def _switch_to(self,rec:TaskRecord,preempt:bool=False):
         old=self.tasks.get(self.current_id) if self.current_id else None

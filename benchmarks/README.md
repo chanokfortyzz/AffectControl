@@ -247,3 +247,15 @@ the priority-vs-urgency conflict are recorded without retuning.
 See `docs/exploratory-local-crossover-2026-11-08.md` and
 `docs/balanced-crossover-method-amendment-2026-11-08.md`.
 Research evidence remains E1.
+
+
+## Explicit-user hard override regression (2026-11-08)
+
+A factored behavioral check found that an explicit immediate user
+command could be blocked by a higher weighted-score background task
+even when that background was preemptible. The Affective reference
+scheduler now enforces user-confirmed hard override **above ordinary
+ranking**, without changing comparative baseline strategies, weight
+parameters, or nonpreemptible work. This is a policy-contract bug fix,
+not evidence that AffectControl beats Urgency-only; see
+`docs/explicit-user-override-regression-2026-11-08.md`.
