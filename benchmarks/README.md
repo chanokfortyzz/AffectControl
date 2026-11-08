@@ -377,3 +377,14 @@ forged matches and replay. No synthetic proof is claimed to be a
 real Bus event, no keys were deployed, and no Sage production task
 was changed. See docs/s1-bus-authenticated-join-gate-2026-11-08.md.
 E1 remains.
+
+## Prospective origin-bound S1/Bus attribution v3 (2026-11-08)
+
+The v3 gate signs the entire canonical source event and rejects
+after-the-fact correlation of legacy messages with no original
+source-record token. All historical sources remain unbound:
+202 real S1 watcher events, two Bus message events and zero
+authenticated cross-source joins. Positive tests are synthetic.
+Independent intake/S1/Bus key custody and prospective source writers
+are not installed. See the v3 origin-bound protocol document.
+Evidence remains E1.

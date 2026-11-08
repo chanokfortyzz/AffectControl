@@ -23,9 +23,12 @@ import re
 
 from benchmarks.capture_execution import _write_exclusive
 
-PROTOCOL = "affectcontrol-s1-bus-dual-attestation-join-v1"
+PROTOCOL = "affectcontrol-s1-bus-origin-bound-join-v3"
 WATCH_SCHEMA = "agent-eval/s1-watch-v1"
 BUS_SCHEMA = "agent-eval/v1"
+WATCH_BOUND_SCHEMA = "affectcontrol/s1-origin-bound-v1"
+BUS_BOUND_SCHEMA = "affectcontrol/bus-origin-bound-v1"
+ORIGIN_FIELDS = frozenset({"correlation_id", "request_sha256"})
 WATCH_FIELDS = frozenset({
     "captured_utc", "event_id", "event_type", "kind",
     "observed_fingerprint", "schema", "source_table",
@@ -44,8 +47,8 @@ MAX_SOURCE_BYTES = 20_000_000
 MAX_RECORDS = 100_000
 SIGNABLE = {
     "intake": frozenset({"correlation_id", "request_sha256", "issued_at"}),
-    "s1": frozenset({"correlation_id", "request_sha256", "event_id", "observed_at"}),
-    "bus": frozenset({"correlation_id", "request_sha256", "event_id", "observed_at"}),
+    "s1": frozenset({"correlation_id", "request_sha256", "event_id", "observed_at", "source_event_sha256"}),
+    "bus": frozenset({"correlation_id", "request_sha256", "event_id", "observed_at", "source_event_sha256"}),
 }
 
 
@@ -88,8 +91,22 @@ def _source(path, label, fields, schema):
             row = json.loads(line)
         except json.JSONDecodeError as exc:
             raise ValueError(f"{label}: invalid JSON on line {lineno}") from exc
-        if not isinstance(row, dict) or set(row) != fields or row.get("schema") != schema:
+        if not isinstance(row, dict):
+            raise ValueError(f"{label}: invalid source object")
+        prospective_schema = WATCH_BOUND_SCHEMA if label == "S1" else BUS_BOUND_SCHEMA
+        if row.get("schema") == schema:
+            expected_fields = fields
+        elif row.get("schema") == prospective_schema:
+            expected_fields = fields | ORIGIN_FIELDS
+        else:
+            raise ValueError(f"{label}: unsupported source schema")
+        if set(row) != expected_fields:
             raise ValueError(f"{label}: unexpected fields/schema (possibly private raw data)")
+        if row.get("schema") == prospective_schema:
+            if not all(
+                    isinstance(row.get(key), str) and HEX64.fullmatch(row[key])
+                    for key in ORIGIN_FIELDS):
+                raise ValueError(f"{label}: invalid in-source task correlation binding")
         if not isinstance(row["event_id"], str) or not row["event_id"]:
             raise ValueError(f"{label}: missing event identifier")
         # Historical watcher has an event whose source timestamp is null.
@@ -122,7 +139,7 @@ def sign(role, payload, key):
         raise ValueError("unknown attestation role/fields")
     if not isinstance(key, bytes) or len(key) < 32:
         raise ValueError("attestation key must be 32+ private bytes")
-    return hmac.new(key, b"AffectControl-join-v1\x00" + role.encode()
+    return hmac.new(key, b"AffectControl-join-v3\x00" + role.encode()
                     + b"\x00" + canonical(payload), hashlib.sha256).hexdigest()
 
 
@@ -132,7 +149,9 @@ def _validate_attestation(role, record, key):
     for k in SIGNABLE[role]:
         if not isinstance(record[k], str) or not record[k]:
             raise ValueError(f"{role}: missing {k}")
-    for k in ("correlation_id", "request_sha256"):
+    for k in ("correlation_id", "request_sha256", "source_event_sha256"):
+        if k == "source_event_sha256" and role == "intake":
+            continue
         if not HEX64.fullmatch(record[k]):
             raise ValueError(f"{role}: invalid {k}")
     _time(record["issued_at"] if role == "intake" else record["observed_at"])
@@ -166,6 +185,25 @@ def verify_proof(proof, s1_by_event, bus_by_event, keys):
         raise ValueError("attested event not present in its source log")
     if not bus["actor_identity_verified"]:
         raise ValueError("Bus sender identity is not verified")
+    # A signature constructed *after the event* could claim any arbitrary
+    # task token. It is not adequate unless the two SOURCE EVENT ROWS
+    # themselves carried the matching, pre-issued correlation ID and request
+    # digest when their trusted reporters observed the events.
+    for role, row, allowed in (
+            ("s1", s1, WATCH_BOUND_SCHEMA),
+            ("bus", bus, BUS_BOUND_SCHEMA)):
+        if row["schema"] != allowed:
+            raise ValueError(f"{role}: source event lacks prospective task binding")
+        for field in ("correlation_id", "request_sha256"):
+            if row[field] != parts["intake"][field]:
+                raise ValueError(f"{role}: in-source task binding mismatch")
+    # Sign canonical *entire event rows*, not only the event ID / timestamp.
+    # Otherwise unrelated metadata could be replaced after signature issuance
+    # while preserving the fields the original v1 protocol did check.
+    if parts["s1"]["source_event_sha256"] != digest(canonical(s1)):
+        raise ValueError("S1 source event content hash mismatch")
+    if parts["bus"]["source_event_sha256"] != digest(canonical(bus)):
+        raise ValueError("Bus source event content hash mismatch")
     if s1["timestamp"] is None:
         raise ValueError("S1 source event lacks timestamp needed for join")
     if _time(parts["s1"]["observed_at"]) != _time(s1["timestamp"]):
@@ -218,6 +256,8 @@ def audit(s1_path, bus_path, *, proofs=None, keys=None):
         "n_s1_pseudonymous_trace_ids": len(watch_traces),
         "n_bus_message_events": len(bus),
         "n_bus_actor_identity_verified": sum(x["actor_identity_verified"] for x in bus),
+        "n_s1_events_with_origin_binding": sum(x["schema"] == WATCH_BOUND_SCHEMA for x in watch),
+        "n_bus_events_with_origin_binding": sum(x["schema"] == BUS_BOUND_SCHEMA for x in bus),
         "n_exact_id_overlaps_untrusted": unverified_overlap,
         "n_submitted_dual_proofs": len(proofs) if proofs is not None else 0,
         "n_verified_s1_bus_event_joins": len(verified),
@@ -227,8 +267,8 @@ def audit(s1_path, bus_path, *, proofs=None, keys=None):
         "evidence_level": "E1-cross-source-join-readiness-only",
         "warning": (
             "Exact string identity and temporal proximity cannot prove a join. "
-            "Only separately signed intake/S1/Bus attestations anchored to "
-            "source events are admissible. HMAC is symmetric: keys require "
+            "Only origin-bound source events and separately signed intake/S1/Bus attestations bound to "
+            "full source event content are admissible. HMAC is symmetric: keys require "
             "separate trusted custody; this prototype is not an audited "
             "production identity/authorization layer. A verified join "
             "still does not prove task success, actual deadline or policy effect."

@@ -68,3 +68,14 @@ AffectControl-vs-urgency efficacy. **E2 remains unavailable.**
 
 The output is create-only. Never generate retrospective fictitious
 attestations for historical S1 or Bus records.
+
+## Subsequent v3 protocol correction
+
+After adversarial review, it became clear that the original HMAC
+proof did not cover all event content, and that full-event signing
+without prospective in-source task binding was still insufficient.
+Current v3 additionally requires the task token and request digest
+to be present in the original source event row. Historical events
+are readable for coverage but cannot be retroactively promoted.
+Actual data: 202 S1 events, two Bus events, zero eligible joins.
+See s1-bus-origin-bound-protocol-v3-2026-11-08.md.
