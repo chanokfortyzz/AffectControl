@@ -9,10 +9,18 @@ import argparse
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 
-from benchmarks.capture_execution import _write_exclusive
+
+def _write_exclusive(path, content):
+    """Standalone, create-only 0600 write; no AffectControl import required."""
+    fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "wb") as handle:
+        handle.write(content)
+        handle.flush()
+        os.fsync(handle.fileno())
 
 SCHEMA = "affectcontrol-sage-outbox-staging-v1"
 HEADING = re.compile(r"(?m)^### \[([^\]\r\n]+)\]\s*$")

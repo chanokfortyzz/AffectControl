@@ -500,3 +500,15 @@ one card and left original files unchanged. Thirteen tests
 passed. See docs/sage-outbox-to-queue-staged-intake-2026-11-09.md.
 No production intake receipt or actual Bus message was created.
 AffectControl remains E1.
+
+## Actual Sage VPS private-sandbox staging verification (2026-11-09)
+
+The S1 Outbox staging adapter now has no non-stdlib dependencies.
+It was executed successfully through the authorized SSH connection
+ON THE ACTUAL Sage VPS, using real remote Outbox/queue source
+bytes copied to an ephemeral 0700 private temporary directory.
+One synthetic new S1 request became one non-dispatchable staging
+card, no historic request was replayed, and original VPS queue
+and Outbox SHA256 values were unchanged. The temporary directory
+was cleaned up. This is *not* an actual Sage intake receipt or
+Bus transport event. See the staged intake report. E1 remains.

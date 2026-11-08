@@ -79,3 +79,38 @@ IDs must only be recorded when real messages exist.
 The original deadlines and independently accepted business
 outcomes are still unavailable. E2 conditions are not met.
 Sage production routing and S1 databases remain unchanged.
+
+## Follow-up: actual Sage VPS isolated-source execution
+
+After first checking the local copy, the staging module was made
+**standalone Python standard library only**, with an atomic,
+create-only, mode-0600 evidence writer. No installed AffectControl
+runtime is required on the Sage VPS.
+
+A second, actually executed pilot transferred the pinned staging
+program into a **single authorized SSH Python process** running on
+the real Sage VPS. It read the real VPS Bridge 04 Outbox and 02
+queue as inputs and copied their bytes to a PRIVATE temporary
+directory with automatic cleanup. It bootstrapped the history,
+appended one synthetic S1 request to the private Outbox COPY,
+built one non-dispatchable queue-copy card, and then checked the
+original production source SHA256 values.
+
+Verified VPS result:
+
+- Actual VPS Outbox baseline read: yes.
+- Actual VPS queue used as read-only staging template: yes.
+- Historical Outbox task requests replayed: **0**.
+- Synthetic new S1 requests staged: **1**.
+- Generated card explicitly NOT dispatchable: yes.
+- Original remote production Outbox/queue bytes unchanged: yes.
+- Private temporary copies removed: yes.
+- Actual Sage receiver acknowledgement: **none**.
+- Actual WebClip Bus message: **none**.
+
+This shows executable compatibility on the **real host**, not just
+on the developer laptop. It does not install a production watcher,
+modify OpenClaw services, allocate production authentication keys,
+or claim a real receiver accepted an S1 task. Actual task intake,
+crash-safe queue fencing and independent outcome/deadline evidence
+remain the next controlled integration steps. E1 remains.
