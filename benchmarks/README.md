@@ -225,3 +225,25 @@ receipts, forged transitions and nonzero exits labelled successful
 are rejected. See `docs/real-multitask-lifecycle-pilot-2026-11-08.md`
 for the executed two-task interleaving and limitations. Evidence
 remains E1, not a real Agent scheduler policy trial.
+
+
+## Real subprocess crossover: negative exploratory finding (2026-11-08)
+
+`prospective_local_crossover.py` executes fixed, allowlisted local
+pytest tasks in child processes, with the real AffectControl reference
+scoring formula choosing their queue order. It freezes the plan before
+the first run, includes source/plan hashes, and randomizes then balances
+AB/BA strategy order. It never touches production Sage/S1.
+
+The initial unbalanced two-pair experiment yielded artificially timed
+local exits of 50% for Affective versus 75% for Urgency-only. Because
+both pairs ran affective first, the result was kept unchanged and a
+**post-pilot, explicitly nonconfirmatory AB/BA amendment** was made.
+The balanced rerun produced 62.5% versus 75%, respectively. This is a
+mechanistic local-compute exercise, not real-world deadlines, task
+acceptance or any independent causal advantage. Negative results and
+the priority-vs-urgency conflict are recorded without retuning.
+
+See `docs/exploratory-local-crossover-2026-11-08.md` and
+`docs/balanced-crossover-method-amendment-2026-11-08.md`.
+Research evidence remains E1.

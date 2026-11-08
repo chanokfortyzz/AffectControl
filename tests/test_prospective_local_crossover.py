@@ -57,6 +57,12 @@ def test_one_pair_mock_processes_are_exploratory_only(tmp_path):
     assert result["preemptions_observed"] == 0
     frozen = (root / "frozen-plan.json").read_bytes()
     assert hashlib.sha256(frozen).hexdigest() == result["frozen_plan_sha256"]
+    plan = json.loads(frozen)
+    from benchmarks import prospective_local_crossover as experiment
+    assert plan["runner_script_sha256"] == hashlib.sha256(
+        Path(experiment.__file__).read_bytes()).hexdigest()
+    assert plan["source_git_sha"] == result["source_git_sha"]
+    assert plan["arm_orders"][0] == list(reversed(plan["arm_orders"][1]))
     assert all(command[1][2] == "pytest" for command in calls)
     assert sorted(t["strategy"] for t in result["trials"]) == ["affective", "affective", "urgency", "urgency"]
     assert result["arm_orders"][0] == list(reversed(result["arm_orders"][1]))
