@@ -402,3 +402,16 @@ Bus production events. A single lab controller has all test keys,
 so no independent production key custody is proven. See
 docs/actual-local-origin-bound-process-pilot-2026-11-08.md.
 E1 remains.
+
+## Re-audit real historic S1 Shadow ↔ connected WebClip Bus transport (2026-11-08)
+
+The read-only existing_s1_shadow_bridge.py cross-checked one earlier
+**real** Sage Bus request/reply exchange against the source archived
+request, connected-provider observation, five immutable Shadow SQLite
+events and the archived code-test attestation hash. The Bus
+transport reply matched. This does not establish a **native production
+S1** task join. The old dynamic verifier currently rejects the
+changed RaceLine worktree; the separate archive-only bridge does
+not claim fresh code success. Nine portable regression tests were
+added. Full caveats: docs/existing-s1-shadow-live-bus-reaudit-2026-11-08.md.
+Research remains E1.
