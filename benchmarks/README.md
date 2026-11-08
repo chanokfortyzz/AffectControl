@@ -163,3 +163,30 @@ python benchmarks/appraisal_compare.py predictions.jsonl --threshold 0.5
 It reports per-provider coverage, Brier score, ECE, AUROC, fixed-threshold confusion metrics, latency/cost summaries, plus paired bootstrap confidence intervals for Brier-score differences on common cases.
 
 This evaluator deliberately does **not** tune thresholds. Use a separate train/validation procedure, freeze the threshold, then run this script on held-out labels.
+
+
+## Session-clustered frozen-label appraisal comparison (2026-11-08)
+
+The `appraisal_compare.py` evaluator now accepts `session_id` or
+`cluster_id` per JSONL row. Paired Brier differences are averaged **within
+each session**, then averaged equally across sessions, and the 95% percentile
+bootstrap resamples entire sessions with replacement. Different session
+lengths must not silently alter the independent experimental unit.
+
+- Missing IDs on all rows: descriptive row-mean only, **no CI**.
+- Mixed missing and present IDs among paired rows: evaluation **fails**.
+- One independent session: point estimate only, **no CI**.
+- Provider-specific Brier metrics remain event-weighted and may not equal
+  session-equal paired differences. Do not conflate these estimands.
+- Compare only providers on the **same labeled cases**; report coverage.
+- Multiple pairs are exploratory until a primary comparison is predeclared.
+- This still depends on independent session sampling, honest labels, and a
+  frozen test split; it is not evidence of a causal intervention effect.
+
+## Public external source integrity check (2026-11-08)
+
+Run `agentrx_integrity.py` against the two pinned files described in
+`docs/external-reality-check-2026-11-08.md`. This checks public
+trajectory-to-annotation consistency and pinned SHA256 digests. It does
+**not** treat AgentRx error-localization labels as an AffectControl
+interruption-ground-truth oracle, or report success rate improvements.
