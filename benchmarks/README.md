@@ -468,3 +468,20 @@ status after source-grain exclusion. Nine tests cover provenance,
 duplicates, and content privacy. See
 docs/sage-bridge-historical-queue-evidence-2026-11-08.md.
 E1 unchanged and no live Sage/S1 writes were performed.
+
+## Direct real Sage VPS read-only file audit (2026-11-08)
+
+remote_sage_bridge_audit.py uses the authorized Mac SSH
+connection to inspect the actual VPS Bridge source files.
+All 3 native S1 tasks had matching remotely replicated Outbox
+request blocks. None were in the current remote queue/watchdog;
+one had a historic provider-ID card reporting done, but the
+archive had duplicate task cards, so done was NOT admitted.
+Remote file SHA256 digests and timestamp metadata were collected
+without exporting private IDs or task contents. Nine portable
+tests validate matching, conflicts, duplication and immutable
+source rules. This is remote file-level transport evidence,
+not a provider-signed per-task receipt or a validated WebClip
+Bus message join. See
+docs/direct-vps-sage-bridge-audit-2026-11-08.md.
+E1 unchanged; no Sage production modifications.
