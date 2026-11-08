@@ -428,3 +428,17 @@ one historic real **S1 Shadow**↔WebClip Bus transport roundtrip.
 A native S1 task still has no authenticated Bus-message join.
 Details: docs/existing-s1-shadow-live-bus-reaudit-2026-11-08.md.
 No live DB writes. Research remains E1.
+
+## Real S1↔Sage provider continuity: bridge snapshots vs output files (2026-11-08)
+
+The read-only native_sage_continuity_audit.py examined three actual
+S1↔Sage provider mappings, today's Sage watchdog state, the separate
+historical task-card snapshot, and stored result files. Zero provider
+IDs were in either current index; two completed native mappings had
+nonempty result files; one created mapping had none. The S1 task
+manager's outbox-to-Sage-card path and the separate Sage Bus API
+gateway are **distinct**, and no genuine native S1↔WebClip message
+join is established. Nine portable tests cover source conflicts,
+path traversal, result file presence and provenance guardrails.
+See docs/native-s1-sage-continuity-real-audit-2026-11-08.md.
+No source writes or dispatch; research remains E1.
