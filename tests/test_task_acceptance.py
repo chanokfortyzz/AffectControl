@@ -82,3 +82,31 @@ def test_wrong_commit_and_unsupported_label_rejected(tmp_path):
     (root/"receipt.json").write_text(json.dumps(row))
     with pytest.raises(ValueError,match="unsupported evidence"):
         acceptance.verify(root/"receipt.json",root/"results.xml",receipt["research_commit_sha"])
+
+
+
+def test_contract_semantic_digest_matches_lf_and_crlf(monkeypatch,tmp_path):
+    original=acceptance.SPEC.read_bytes()
+    lf=original.replace(b"\r\n",b"\n")
+    crlf=lf.replace(b"\n",b"\r\n")
+    first=tmp_path/"lf.json"
+    second=tmp_path/"crlf.json"
+    first.write_bytes(lf)
+    second.write_bytes(crlf)
+    monkeypatch.setattr(acceptance,"SPEC",first)
+    data_a,digest_a=acceptance.load_contract()
+    monkeypatch.setattr(acceptance,"SPEC",second)
+    data_b,digest_b=acceptance.load_contract()
+    assert data_a==data_b
+    assert digest_a==digest_b
+    assert acceptance.digest(lf)!=acceptance.digest(crlf)
+
+
+def test_old_noncanonical_receipt_schema_is_rejected(tmp_path):
+    out=tmp_path/"evidence"
+    receipt=acceptance.run_case("override-contract",str(out),repo=PROJECT)
+    row=json.loads((out/"receipt.json").read_text())
+    row["schema"]="affectcontrol-named-task-machine-check-v1"
+    (out/"receipt.json").write_text(json.dumps(row))
+    with pytest.raises(ValueError,match="schema"):
+        acceptance.verify(out/"receipt.json",out/"results.xml",receipt["research_commit_sha"])

@@ -18,7 +18,7 @@ import xml.etree.ElementTree as ET
 from benchmarks.capture_execution import _write_exclusive
 
 SPEC = Path(__file__).with_name("task_acceptance_spec.json")
-SCHEMA = "affectcontrol-named-task-machine-check-v1"
+SCHEMA = "affectcontrol-named-task-machine-check-v2"
 CASES = frozenset({"override-contract", "swf-byte-integrity"})
 
 
@@ -44,7 +44,12 @@ def load_contract():
         prefix = "tests/test_explicit_override_priority.py::" if case == "override-contract" else "tests/test_pwa_arrival_audit.py::"
         if any(not isinstance(n, str) or not n.startswith(prefix) or not re.fullmatch(r"tests/test_[a-z_]+\.py::test_[a-z_]+", n) for n in nodes):
             raise ValueError("unapproved test selector")
-    return spec, digest(raw)
+    # The contract is a JSON object, not a byte-for-byte line-ending artifact.
+    # Git may check out CRLF on Windows. Hash canonical semantic content so
+    # the same frozen contract produces an identical digest on all platforms.
+    canonical = json.dumps(spec, sort_keys=True, ensure_ascii=False,
+                           separators=(",", ":")).encode("utf-8")
+    return spec, digest(canonical)
 
 
 def junit_summary(raw: bytes, selectors: list[str]) -> dict:

@@ -92,3 +92,35 @@ criterion. It does not evaluate affective versus urgency-only
 scheduling and does not demonstrate a causal policy effect.
 
 **AffectControl remains E1, not E2.**
+
+## Cross-platform receipt validation finding and v2 correction
+
+The first committed remote workflow (head `b473c97`, GitHub run
+[42451320693](https://github.com/chanokfortyzz/AffectControl/actions/runs/42451320693))
+successfully ran all four Ubuntu/Windows task checks. However,
+downloading and verifying the actual JUnit + receipt archives on the
+Mac gave the following *distinct* evidence result:
+
+- Ubuntu override-contract: 3/3 and receipt verification passed.
+- Ubuntu swf-byte-integrity: 2/2 and receipt verification passed.
+- Windows receipts: the original v1 raw-file contract SHA256 did not
+  match the Unix-checkout JSON bytes, despite the Windows CI tests
+  succeeding. The original Windows receipts therefore **failed the
+  cross-host artifact verifier**, and cannot be retroactively marked as
+  verified under v1.
+
+The cause is Git's platform-dependent LF/CRLF text conversion when
+checking out the JSON contract. A frozen *semantic JSON contract* is
+not a frozen byte-for-byte checked-out text file.
+
+**Corrective v2:** The acceptance receipt schema is now
+`affectcontrol-named-task-machine-check-v2`. Its contract digest is
+computed from sorted-key, compact UTF-8 canonical JSON, not the
+locally checked-out text bytes. A new regression test proves LF and
+CRLF copies yield the same semantic digest, while another test
+rejects old v1 receipts under v2. No test selectors, acceptance
+criteria, policy weights, deadlines, or task outcomes were changed.
+
+This is a **post-run evidence-format repair** and must produce new
+remote artifacts before claiming cross-platform receipt integrity.
+Neither v1 nor v2 can establish independent human task completion.
