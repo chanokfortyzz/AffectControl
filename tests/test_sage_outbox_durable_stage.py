@@ -305,3 +305,30 @@ def test_real_subprocess_exit_releases_lock_and_recovers(stager):
     assert report["staged_candidate_count"] == 1
     assert report["committed_steps"] == 1
     assert tick(source, root)["noop"]
+
+
+
+def test_replayed_historic_provider_id_not_accepted(stager):
+    source, _, root = stager
+    add(source, "TASK-S1-HISTORIC", "fresh-native")
+    with pytest.raises(ValueError, match="historic"):
+        tick(source, root)
+    assert public_status(root)["staged_candidate_count"] == 0
+
+
+def test_replayed_historic_native_id_not_accepted(stager):
+    source, _, root = stager
+    add(source, "TASK-S1-FRESH-ID", "s1-historic")
+    with pytest.raises(ValueError, match="historic"):
+        tick(source, root)
+    assert public_status(root)["staged_candidate_count"] == 0
+
+
+def test_history_index_does_not_leak_source_ids(stager):
+    _, _, root = stager
+    data = (root / "state.json").read_text(encoding="utf-8")
+    assert "TASK-S1-HISTORIC" not in data
+    assert "s1-historic" not in data
+    s = json.loads(data)
+    assert len(s["historical_provider_hashes"]) == 1
+    assert len(s["historical_native_hashes"]) == 1

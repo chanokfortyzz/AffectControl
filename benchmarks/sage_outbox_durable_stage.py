@@ -16,6 +16,7 @@ import re
 
 from benchmarks.sage_outbox_staged_intake import (
     SCHEMA as SOURCE_SCHEMA, _write_exclusive, digest, parse_append, read,
+    HEADING, FIELD, SAFE_NATIVE, SAFE_TASK,
 )
 
 SCHEMA = "affectcontrol-sage-outbox-durable-stage-v1"
@@ -99,7 +100,39 @@ def _read_state(root):
             raise ValueError("invalid receiver digest")
     if not isinstance(state.get("accepted"), dict):
         raise ValueError("invalid staged acceptance ledger")
+    if type(state.get("bootstrap_bytes")) is not int or not 0 < state["bootstrap_bytes"] <= state["cursor_bytes"]:
+        raise ValueError("invalid historic source boundary")
+    for key in ("bootstrap_source_sha256",):
+        if not re.fullmatch("[a-f0-9]{64}", str(state.get(key, ""))):
+            raise ValueError("invalid historic source digest")
+    for key in ("historical_provider_hashes", "historical_native_hashes"):
+        ids = state.get(key)
+        if not isinstance(ids, list) or not all(isinstance(z, str) and re.fullmatch("[a-f0-9]{64}", z) for z in ids):
+            raise ValueError("invalid historic task digest index")
     return state, blob
+
+
+def _historical_ids(raw):
+    """Pin IDs from all existing S1 requests, without replaying their work."""
+    sections = HEADING.split(raw.decode("utf-8"))
+    provider_hashes = set()
+    native_hashes = set()
+    for i in range(1, len(sections) - 1, 2):
+        fields = {}
+        for line in sections[i + 1].splitlines():
+            match = FIELD.match(line.strip())
+            if match:
+                fields.setdefault(match.group(1), match.group(2).strip())
+        if fields.get("类型") != "新任务请求（来自 S1）":
+            continue
+        native = fields.get("s1_ref")
+        provider = fields.get("任务ID（建议）")
+        if not (isinstance(native, str) and SAFE_NATIVE.fullmatch(native)
+                and isinstance(provider, str) and SAFE_TASK.fullmatch(provider)):
+            raise ValueError("unparseable historic S1 task cannot be safely baselined")
+        provider_hashes.add(digest(provider.encode("utf-8")))
+        native_hashes.add(digest(native.encode("utf-8")))
+    return sorted(provider_hashes), sorted(native_hashes)
 
 
 def initialize(source, initial_queue, root):
@@ -110,12 +143,17 @@ def initialize(source, initial_queue, root):
         raise ValueError("incomplete Outbox initial snapshot")
     template = read(initial_queue)
     template.decode("utf-8")
+    history_providers, history_native = _historical_ids(original)
     root = Path(root)
     root.mkdir(parents=True, mode=0o700, exist_ok=False)
     state = {
         "schema": SCHEMA,
         "cursor_bytes": len(original),
+        "bootstrap_bytes": len(original),
+        "bootstrap_source_sha256": digest(original),
         "source_prefix_sha256": digest(original),
+        "historical_provider_hashes": history_providers,
+        "historical_native_hashes": history_native,
         "queue_sha256": digest(template),
         "accepted": {},
         "committed_steps": 0,
@@ -240,14 +278,21 @@ def tick(source, root, *, crash_at=None):
         accepted = dict(state["accepted"])
         current_ids = set(PROVIDER_IDS.findall(queue_bytes.decode("utf-8")))
         native_ids = {record["native_ref_sha256"] for record in accepted.values()}
+        historical_provider = set(state["historical_provider_hashes"])
+        historical_native = set(state["historical_native_hashes"])
         for item in tasks:
             card_hash = digest(item["card"].encode("utf-8"))
             native_hash = digest(item["native"].encode("utf-8"))
-            if item["card"] in current_ids or card_hash in accepted or native_hash in native_ids:
-                raise ValueError("previously accepted or existing S1 request collision")
+            if (item["card"] in current_ids or card_hash in accepted
+                    or native_hash in native_ids or card_hash in historical_provider
+                    or native_hash in historical_native):
+                raise ValueError("previously accepted, historic, or existing S1 request collision")
             accepted[card_hash] = {
                 "native_ref_sha256": native_hash,
                 "source_entry_sha256": item["source_entry_sha256"],
+                "source_chunk_start": cursor,
+                "source_chunk_end": len(incoming),
+                "source_chunk_sha256": digest(suffix),
             }
         new_queue = queue_bytes + _render_cards(tasks)
         next_state = {

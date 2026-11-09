@@ -529,3 +529,21 @@ hashes. No production watcher, receiver key, Bus message or
 task dispatch was installed. See
 docs/sage-outbox-durable-staging-recovery-2026-11-09.md.
 E1 remains.
+
+## Test-only source-bound intake signatures and historical replay guard
+
+The private durable receiver now stores hashed original S1
+and proposed provider IDs, rejecting historical tasks re-sent
+with new timestamps. It records exact new request source
+byte-span and chunk hashes in the staged state.
+
+sage_intake_receipt_lab.py recomputes original Outbox bytes,
+committed staging state, queue/card safety guards and SHA256
+proofs, then creates and independently verifies per-task
+test-only HMAC receipts. On the authorized real Sage VPS,
+2 synthetic tasks produced 2 checked lab receipts; a
+forged real-acceptance claim was rejected, and production
+source hashes remained unchanged. HMAC test keys are shared,
+not independent trusted Sage receiver identity. See
+docs/sage-intake-source-bound-test-receipts-2026-11-09.md.
+E1 remains, production unchanged.
