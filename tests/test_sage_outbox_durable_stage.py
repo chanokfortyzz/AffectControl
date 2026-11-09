@@ -60,7 +60,7 @@ def test_durable_staging_is_idempotent_and_private(stager):
     assert "TASK-S1-HISTORIC" not in staged
     assert original_queue.read_bytes() == before
     assert "s1-a" not in json.dumps(status)
-    assert "TASK-S1-TEST-A" not in (root / "state.json").read_text()
+    assert "TASK-S1-TEST-A" not in (root / "state.json").read_text(encoding="utf-8")
 
 
 def test_two_sequential_additions_both_exactly_once(stager):
@@ -70,7 +70,7 @@ def test_two_sequential_additions_both_exactly_once(stager):
     add(source, "TASK-S1-TEST-B", "s1-b")
     assert tick(source, root)["new_candidate_count"] == 1
     assert tick(source, root)["noop"] is True
-    body = (root / "queue.md").read_text()
+    body = (root / "queue.md").read_text(encoding="utf-8")
     assert body.count("### [TASK-S1-TEST-A]") == 1
     assert body.count("### [TASK-S1-TEST-B]") == 1
     assert public_status(root)["committed_steps"] == 2
@@ -88,7 +88,7 @@ def test_crash_after_any_durable_phase_recovers_once(stager, phase):
     assert report["staged_candidate_count"] == 1
     assert report["committed_steps"] == 1
     assert tick(source, root)["noop"] is True
-    assert (root / "queue.md").read_text().count("### [TASK-S1-TEST-A]") == 1
+    assert (root / "queue.md").read_text(encoding="utf-8").count("### [TASK-S1-TEST-A]") == 1
 
 
 def test_old_source_prefix_tampered_fails_closed(stager):
@@ -150,7 +150,7 @@ def test_unrelated_outbox_notification_advances_checkpoint_only(stager):
 def test_external_staging_queue_edit_rejected(stager):
     source, _, root = stager
     add(source)
-    (root / "queue.md").write_text("attacker changed staging file\n")
+    (root / "queue.md").write_text("attacker changed staging file\n", encoding="utf-8")
     with pytest.raises(ValueError, match="outside receiver"):
         tick(source, root)
 
@@ -161,9 +161,9 @@ def test_corrupted_pending_journal_does_not_become_acceptance(stager):
     with pytest.raises(InjectedCrash):
         tick(source, root, crash_at="after_prepare")
     p = root / "pending.json"
-    v = json.loads(p.read_text())
+    v = json.loads(p.read_text(encoding="utf-8"))
     v["new_queue_sha256"] = "0"*64
-    p.write_text(json.dumps(v))
+    p.write_text(json.dumps(v), encoding="utf-8")
     with pytest.raises(ValueError, match="pending queue hash mismatch"):
         recover(root)
     assert public_status(root)["pending_transaction_exists"] is True
@@ -186,7 +186,7 @@ def test_existing_staging_root_cannot_be_reinitialized(stager):
 def test_symlinked_queue_cannot_be_overwritten(stager, tmp_path):
     source, _, root = stager
     target = tmp_path / "private-file"
-    target.write_text("never overwrite")
+    target.write_text("never overwrite", encoding="utf-8")
     (root / "queue.md").unlink()
     try:
         (root / "queue.md").symlink_to(target)
@@ -195,7 +195,7 @@ def test_symlinked_queue_cannot_be_overwritten(stager, tmp_path):
     add(source)
     with pytest.raises(ValueError, match="symlink"):
         tick(source, root)
-    assert target.read_text() == "never overwrite"
+    assert target.read_text(encoding="utf-8") == "never overwrite"
 
 
 def test_no_real_sage_or_bus_receipt_is_ever_emitted(stager):
@@ -267,7 +267,7 @@ def test_truncated_queue_next_healed_only_from_existing_journal(stager):
     (root / "queue.next").write_bytes(b"partial temporary")
     report = recover(root)
     assert report["staged_candidate_count"] == 1
-    assert (root / "queue.md").read_text().count("### [TASK-S1-TEST-A]") == 1
+    assert (root / "queue.md").read_text(encoding="utf-8").count("### [TASK-S1-TEST-A]") == 1
 
 
 def test_truncated_state_next_healed_only_from_existing_journal(stager):

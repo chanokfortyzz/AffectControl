@@ -132,3 +132,18 @@ The module's CLI supports:
 
 All commands require an explicit private root; never point
 that root at live Sage production queue files.
+
+## Windows CI fixture compatibility correction
+
+The first remote CI for a0a9186 passed macOS and Ubuntu but
+failed both Windows Python 3.10 and 3.12 jobs. The new test
+file read UTF-8 staged queue-card Markdown using implicit
+Windows CP1252, raising UnicodeDecodeError. The test fixture
+now supplies explicit encoding="utf-8" on all textual source,
+state and staged card reads/writes. The correction was checked
+with PYTHONWARNDEFAULTENCODING=1 and the full local test suite;
+the pending next Windows CI run must independently confirm it.
+
+This is a cross-platform test-fixture correction. The staged
+receiver's storage already uses explicitly encoded UTF-8 bytes,
+and no actual Sage production path was modified.
