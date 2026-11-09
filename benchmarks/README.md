@@ -163,3 +163,387 @@ python benchmarks/appraisal_compare.py predictions.jsonl --threshold 0.5
 It reports per-provider coverage, Brier score, ECE, AUROC, fixed-threshold confusion metrics, latency/cost summaries, plus paired bootstrap confidence intervals for Brier-score differences on common cases.
 
 This evaluator deliberately does **not** tune thresholds. Use a separate train/validation procedure, freeze the threshold, then run this script on held-out labels.
+
+
+## Session-clustered frozen-label appraisal comparison (2026-11-08)
+
+The `appraisal_compare.py` evaluator now accepts `session_id` or
+`cluster_id` per JSONL row. Paired Brier differences are averaged **within
+each session**, then averaged equally across sessions, and the 95% percentile
+bootstrap resamples entire sessions with replacement. Different session
+lengths must not silently alter the independent experimental unit.
+
+- Missing IDs on all rows: descriptive row-mean only, **no CI**.
+- Mixed missing and present IDs among paired rows: evaluation **fails**.
+- One independent session: point estimate only, **no CI**.
+- Provider-specific Brier metrics remain event-weighted and may not equal
+  session-equal paired differences. Do not conflate these estimands.
+- Compare only providers on the **same labeled cases**; report coverage.
+- Multiple pairs are exploratory until a primary comparison is predeclared.
+- This still depends on independent session sampling, honest labels, and a
+  frozen test split; it is not evidence of a causal intervention effect.
+
+## Public external source integrity check (2026-11-08)
+
+Run `agentrx_integrity.py` against the two pinned files described in
+`docs/external-reality-check-2026-11-08.md`. This checks public
+trajectory-to-annotation consistency and pinned SHA256 digests. It does
+**not** treat AgentRx error-localization labels as an AffectControl
+interruption-ground-truth oracle, or report success rate improvements.
+
+
+## Read-only S1 pseudonymous event coverage audit (2026-11-08)
+
+`s1_shadow_audit.py` consumes only the pre-existing, pseudonymized
+S1 observation metadata. Unknown fields (including raw content) are
+rejected, and the report contains no source trace IDs or task text.
+The audit is **not an AffectControl intervention**.
+
+```bash
+python -m benchmarks.s1_shadow_audit --input /path/to/changes.pseudonymous.jsonl
+```
+
+The locally verified 202-row S1 source yielded 17 distinct task
+trace IDs: **6** unambiguous start/terminal status-event spans, **2**
+ambiguous and **9** incomplete. Median status-event interval was
+**419 seconds**, not active task compute time. No independently
+verified acceptance, real deadlines or observed preemption labels
+could be derived; research status remains E1. Full source hash,
+reproducible protocol and limitations are recorded in
+`docs/s1-shadow-evidence-audit-2026-11-08.md`.
+
+
+## Controlled real-process lifecycle audit (2026-11-08)
+
+`task_lifecycle.py` adds a research-only, SHA256-linked and
+monotonic-timestamped task event ledger with `start / pause / resume /
+finish / fail / check` states, linked to actual isolated
+`capture_execution.py` process receipts. A `check` is a **separate
+local subprocess exit**, **not** external independent acceptance.
+Incomplete lifecycles are censored, and duplicate or mismatched
+receipts, forged transitions and nonzero exits labelled successful
+are rejected. See `docs/real-multitask-lifecycle-pilot-2026-11-08.md`
+for the executed two-task interleaving and limitations. Evidence
+remains E1, not a real Agent scheduler policy trial.
+
+
+## Real subprocess crossover: negative exploratory finding (2026-11-08)
+
+`prospective_local_crossover.py` executes fixed, allowlisted local
+pytest tasks in child processes, with the real AffectControl reference
+scoring formula choosing their queue order. It freezes the plan before
+the first run, includes source/plan hashes, and randomizes then balances
+AB/BA strategy order. It never touches production Sage/S1.
+
+The initial unbalanced two-pair experiment yielded artificially timed
+local exits of 50% for Affective versus 75% for Urgency-only. Because
+both pairs ran affective first, the result was kept unchanged and a
+**post-pilot, explicitly nonconfirmatory AB/BA amendment** was made.
+The balanced rerun produced 62.5% versus 75%, respectively. This is a
+mechanistic local-compute exercise, not real-world deadlines, task
+acceptance or any independent causal advantage. Negative results and
+the priority-vs-urgency conflict are recorded without retuning.
+
+See `docs/exploratory-local-crossover-2026-11-08.md` and
+`docs/balanced-crossover-method-amendment-2026-11-08.md`.
+Research evidence remains E1.
+
+
+## Explicit-user hard override regression (2026-11-08)
+
+A factored behavioral check found that an explicit immediate user
+command could be blocked by a higher weighted-score background task
+even when that background was preemptible. The Affective reference
+scheduler now enforces user-confirmed hard override **above ordinary
+ranking**, without changing comparative baseline strategies, weight
+parameters, or nonpreemptible work. This is a policy-contract bug fix,
+not evidence that AffectControl beats Urgency-only; see
+`docs/explicit-user-override-regression-2026-11-08.md`.
+
+
+## Research-only explicit override deadline conflict projection (2026-11-08)
+
+`affectcontrol.override_risk` projects a potential *incremental*
+deadline miss to the task displaced by a valid explicit user override.
+The `affective` scheduler records conditional per-decision projections
+and exposes **aggregate counters** only in its metrics summary;
+it does **not** change whether the explicit instruction executes.
+Missing deadlines, nonfinite durations or unverifiable assumptions
+are not interpreted as proof of safety. The model is one-processor,
+fixed-work-time and diagnostic only. A deterministic fixed task pair
+showed one newly projected miss and one simulated realized miss.
+See `docs/explicit-override-conflict-projection-2026-11-08.md`.
+Research status: **E1**.
+
+
+## Displaced-task risk stress: future arrivals break calibration (2026-11-08)
+
+`override_risk_stress.py` executed **1,536** authored deterministic
+scenarios as **3,072 matched reference scheduler replays**. With
+no further arrivals, the conditional two-task projection agreed with
+the corresponding simulator in all 256 cases. When a third explicit
+task arrived later, precision and recall of **incremental displaced
+deadline misses** fell to 20% in the 1,280 deliberately synthetic
+shifted cases. The code contains reproducible false-positive and
+false-negative scenarios. The `OverrideRisk` result now advertises
+its no-future-arrivals assumption and unvalidated external calibration
+status explicitly. Do not deploy it as a real-time risk probability.
+See `docs/override-risk-stress-2026-11-08.md`. Evidence remains E1.
+
+
+## External real historical workload arrivals, without fake deadlines (2026-11-08)
+
+`pwa_arrival_audit.py` ingests two pinned public SWF 2.2 historical
+HPC job logs (KTH and Cornell CTC) from a pinned, checksum-verified
+GitHub mirror. Of 105,599 records, **105,574** have valid recorded
+submit timestamps and positive actual job runtimes. Event-origin
+next-arrival frequency within 60 seconds is **30.59% at KTH** and
+**44.27% at CTC**, whereas uniform-in-time frequency is **4.76%**
+and **10.80%**. The difference demonstrates sampling dependence and
+non-isolated arrivals in these historical *HPC* contexts, not Agent
+task arrival probabilities. A requested runtime/CPU limit is NOT a
+user task-completion deadline; no intervention outcomes or verified
+Agent acceptance were obtained. The two entire raw logs remain
+gitignored. Full provenance, exact file checksums, data quality and
+limitations: `docs/historical-real-arrival-external-audit-2026-11-08.md`.
+Evidence level remains E1.
+
+
+## Externally executed CI outcomes are not independent Agent acceptance (2026-11-08)
+
+`github_ci_evidence.py` reads authenticated GitHub Actions REST API
+run/job metadata, pins the repository, full revision hash and exact
+six-OS/Python matrix, rejects incomplete, failed or mismatched inputs,
+and writes a create-only, redacted local evidence report. It has
+verified a **6/6 passed** prior commit, the **4/6 passed and 2/6
+Windows-failed** historic SWF-test commit, and the subsequent
+**6/6 passed** Windows fix commit. These are independently hosted
+*automated repository tests*, **not** human acceptance of Agent tasks,
+user completion deadlines, or causal scheduler outcomes. See
+`docs/github-ci-evidence-audit-2026-11-08.md`. E1 unchanged.
+
+
+## Named-task machine checks on GitHub runners (2026-11-08)
+
+`task_acceptance_spec.json` fixes two narrow research-code test
+contracts: the explicit user override's safety behavior (3 selected
+tests), and SWF source-byte integrity (2 selected tests).
+`task_acceptance.py` executes only those frozen selectors and emits
+a case/commit/contract SHA256-pinned JUnit receipt. A dedicated
+GitHub Actions workflow executes both cases on Ubuntu and Windows.
+The separate verifier checks JUnit hashes, exact frozen test selection,
+revision and recorded outcomes. Local preflight of 5 selected checks
+and 8 receipt tests succeeded. External GitHub job and artifact
+verification must be performed before claiming remote execution.
+
+This is **externally hosted machine verification of named research
+code tasks**, *not* independent human Agent task acceptance or
+natural deadline/causal intervention evidence. Documentation:
+`docs/named-task-acceptance-pilot-2026-11-08.md`. E1 unchanged.
+
+
+## E2 evidence-readiness census (2026-11-08)
+
+The privacy-reduced e2_evidence_census.py checked local S1 and
+Agent run-summary sources: 202 watcher events, 196 shadow events
+and six run summaries. No complete E2-admissible episodes could
+be demonstrated because naturally sourced task deadlines, trusted
+cross-system joins, independently judged task outcomes and prospective
+policy allocations were absent. This is missing evidence, NOT a
+failure label. No task content or raw logs leave gitignored storage.
+Details: docs/e2-readiness-data-gate-2026-11-08.md. E1 unchanged.
+
+## Real executor-separated Agent coding-test evidence (2026-11-08)
+
+The agent_eval_hidden_recheck.py auditor checks frozen external-to-
+executor hidden suites and archived public/hidden log hashes, then
+actually reruns hidden tests against isolated copies of six preserved
+coding worktrees. Five hidden suites passed, one failed. The
+individual task programs and logs remain private and outside Git.
+This corrects the overly broad interpretation of the original
+summary-only census: executor-separated code tests DO exist, but
+natural deadlines and AffectControl policy experiments still do not.
+See docs/agent-eval-hidden-oracle-recheck-2026-11-08.md. E1 unchanged.
+
+## S1/Bus authenticated event join gate (2026-11-08)
+
+The S1-Bus join audit inspected 202 pseudonymous S1 records and
+two historic Bus messages. No Bus actor identity was verified and
+zero source joins were admitted. The research-only proof verifier
+requires separate intake/S1/Bus HMAC attestations bound to real
+source event IDs, request hash, consistent timestamps and replay
+protection. Seventeen synthetic protocol tests passed including
+forged matches and replay. No synthetic proof is claimed to be a
+real Bus event, no keys were deployed, and no Sage production task
+was changed. See docs/s1-bus-authenticated-join-gate-2026-11-08.md.
+E1 remains.
+
+## Prospective origin-bound S1/Bus attribution v3 (2026-11-08)
+
+The v3 gate signs the entire canonical source event and rejects
+after-the-fact correlation of legacy messages with no original
+source-record token. All historical sources remain unbound:
+202 real S1 watcher events, two Bus message events and zero
+authenticated cross-source joins. Positive tests are synthetic.
+Independent intake/S1/Bus key custody and prospective source writers
+are not installed. See the v3 origin-bound protocol document.
+Evidence remains E1.
+
+## Real local process with source-bound staging event records (2026-11-08)
+
+The opt-in prospective_origin_lab.py executes a real, fixed unit-test
+subprocess, registering its task token and request digest BEFORE
+execution, preserving a hashed local process receipt, and writing
+two v3 source-format staging events with HMAC proofs. A separate
+read-only verifier rejects altered event status, proof data and
+receipt bytes; nine tests cover the executed pipeline and tampering.
+This is a **local staging proof-of-flow**, not actual S1 or Sage
+Bus production events. A single lab controller has all test keys,
+so no independent production key custody is proven. See
+docs/actual-local-origin-bound-process-pilot-2026-11-08.md.
+E1 remains.
+
+## Re-audit real historic S1 Shadow ↔ connected WebClip Bus transport (2026-11-08)
+
+The read-only existing_s1_shadow_bridge.py cross-checked one earlier
+**real** Sage Bus request/reply exchange against the source archived
+request, connected-provider observation, five immutable Shadow SQLite
+events and the archived code-test attestation hash. The Bus
+transport reply matched. This does not establish a **native production
+S1** task join. The old dynamic verifier currently rejects the
+changed RaceLine worktree; the separate archive-only bridge does
+not claim fresh code success. Nine portable regression tests were
+added. Full caveats: docs/existing-s1-shadow-live-bus-reaudit-2026-11-08.md.
+Research remains E1.
+
+## Native S1 -> Sage provider map is real, Bus message join still absent
+
+The read-only native_s1_mapping_audit.py checked the native S1 SQLite
+schema and found 9 S1 tasks and 3 real S1↔Sage provider task-card
+mappings (2 provider-COMPLETED, 1 CREATED), but zero nonempty native
+due_at fields and zero Bus message/thread IDs attached to those
+mapped tasks. Source status is NOT independent task acceptance.
+This augments, without contradicting, the previously verified
+one historic real **S1 Shadow**↔WebClip Bus transport roundtrip.
+A native S1 task still has no authenticated Bus-message join.
+Details: docs/existing-s1-shadow-live-bus-reaudit-2026-11-08.md.
+No live DB writes. Research remains E1.
+
+## Real S1↔Sage provider continuity: bridge snapshots vs output files (2026-11-08)
+
+The read-only native_sage_continuity_audit.py examined three actual
+S1↔Sage provider mappings, today's Sage watchdog state, the separate
+historical task-card snapshot, and stored result files. Zero provider
+IDs were in either current index; two completed native mappings had
+nonempty result files; one created mapping had none. The S1 task
+manager's outbox-to-Sage-card path and the separate Sage Bus API
+gateway are **distinct**, and no genuine native S1↔WebClip message
+join is established. Nine portable tests cover source conflicts,
+path traversal, result file presence and provenance guardrails.
+See docs/native-s1-sage-continuity-real-audit-2026-11-08.md.
+No source writes or dispatch; research remains E1.
+
+## Native S1/Sage outbox provenance and Windows UTF-8 fix (2026-11-08)
+
+native_sage_continuity_audit.py now optionally checks original
+Sage Bridge Outbox local request blocks against native S1↔Sage
+provider mappings. Actual result: 3/3 exact (native ID, provider
+ID) local submission matches; 2/3 historical nonempty task
+results. No confirmed WebClip message joins or independently
+accepted business-task outcomes. Eight regression tests cover
+collisions, duplicate records and missing/unsafe sources. The
+Windows Markdown fixture now writes explicit UTF-8. Source
+boundaries: docs/native-s1-sage-continuity-real-audit-2026-11-08.md.
+Research remains E1.
+
+## Historical Sage queue-source gate (2026-11-08)
+
+The read-only sage_bridge_historical_queue.py checked 317 local
+historic queue snapshots: 77 with duplicate card IDs were excluded,
+240 accepted for descriptive provenance. Of the 3 native S1 Sage
+mappings (all have original Outbox blocks), 2 had provider-ID cards,
+only 1 had a card explicitly matching native s1_ref, and 1 had no
+historic card. Two had queued status; zero had an admissible done
+status after source-grain exclusion. Nine tests cover provenance,
+duplicates, and content privacy. See
+docs/sage-bridge-historical-queue-evidence-2026-11-08.md.
+E1 unchanged and no live Sage/S1 writes were performed.
+
+## Direct real Sage VPS read-only file audit (2026-11-08)
+
+remote_sage_bridge_audit.py uses the authorized Mac SSH
+connection to inspect the actual VPS Bridge source files.
+All 3 native S1 tasks had matching remotely replicated Outbox
+request blocks. None were in the current remote queue/watchdog;
+one had a historic provider-ID card reporting done, but the
+archive had duplicate task cards, so done was NOT admitted.
+Remote file SHA256 digests and timestamp metadata were collected
+without exporting private IDs or task contents. Nine portable
+tests validate matching, conflicts, duplication and immutable
+source rules. This is remote file-level transport evidence,
+not a provider-signed per-task receipt or a validated WebClip
+Bus message join. See
+docs/direct-vps-sage-bridge-audit-2026-11-08.md.
+E1 unchanged; no Sage production modifications.
+
+## Read-only S1 Outbox to Sage queue intake gap pilot (2026-11-09)
+
+The active Sage VPS queue watcher reads the 02 task queue,
+but the original S1 SageAdapter writes the 04 Outbox. No
+verified automatic consumer path from 04 to 02 was found
+in inspected live router components. A new opt-in staging
+adapter pins the original Outbox as a no-replay baseline,
+validates newly appended S1 task requests, rejects collisions,
+and creates only private, non-dispatchable queue-card copies.
+A real-source-copy pilot with one new synthetic request staged
+one card and left original files unchanged. Thirteen tests
+passed. See docs/sage-outbox-to-queue-staged-intake-2026-11-09.md.
+No production intake receipt or actual Bus message was created.
+AffectControl remains E1.
+
+## Actual Sage VPS private-sandbox staging verification (2026-11-09)
+
+The S1 Outbox staging adapter now has no non-stdlib dependencies.
+It was executed successfully through the authorized SSH connection
+ON THE ACTUAL Sage VPS, using real remote Outbox/queue source
+bytes copied to an ephemeral 0700 private temporary directory.
+One synthetic new S1 request became one non-dispatchable staging
+card, no historic request was replayed, and original VPS queue
+and Outbox SHA256 values were unchanged. The temporary directory
+was cleaned up. This is *not* an actual Sage intake receipt or
+Bus transport event. See the staged intake report. E1 remains.
+
+## Crash-recoverable private Outbox receiver (2026-11-09)
+
+sage_outbox_durable_stage.py implements a private, non-dispatching
+staging queue with an append-only Outbox high-water mark, atomic
+fsynced queue/state transitions, durable pending transaction
+journal, cross-process file locking, collision detection and
+recovery after interruption. New source header validation
+prevents incomplete S1 requests from silently advancing the
+cursor. The actual authorized Sage VPS was used for a private
+temporary-source fault-injection exercise: three interruption
+phases, three successful recoveries, exactly three staged cards,
+zero historic request replay and unchanged production source
+hashes. No production watcher, receiver key, Bus message or
+task dispatch was installed. See
+docs/sage-outbox-durable-staging-recovery-2026-11-09.md.
+E1 remains.
+
+## Test-only source-bound intake signatures and historical replay guard
+
+The private durable receiver now stores hashed original S1
+and proposed provider IDs, rejecting historical tasks re-sent
+with new timestamps. It records exact new request source
+byte-span and chunk hashes in the staged state.
+
+sage_intake_receipt_lab.py recomputes original Outbox bytes,
+committed staging state, queue/card safety guards and SHA256
+proofs, then creates and independently verifies per-task
+test-only HMAC receipts. On the authorized real Sage VPS,
+2 synthetic tasks produced 2 checked lab receipts; a
+forged real-acceptance claim was rejected, and production
+source hashes remained unchanged. HMAC test keys are shared,
+not independent trusted Sage receiver identity. See
+docs/sage-intake-source-bound-test-receipts-2026-11-09.md.
+E1 remains, production unchanged.

@@ -8,6 +8,7 @@ from .clock import ManualClock
 from .global_context import GlobalControlContext
 from .control import RANK
 from .types import ControlBias, TaskRecord, TaskSpec, TaskStatus, clamp
+from .override_risk import projected_override_risk
 
 @dataclass(slots=True)
 class SchedulerMetrics:
@@ -22,6 +23,11 @@ class SchedulerMetrics:
     resume_successes: int=0
     override_tasks: int=0
     override_complied: int=0
+    override_displaced_task_projections: int=0
+    override_newly_projected_misses: int=0
+    override_already_projected_misses: int=0
+    override_missing_deadline_projections: int=0
+    override_unquantifiable_projections: int=0
     def summary(self):
         return {
             "mean_preemption_latency_s": mean(self.preemption_latencies_s) if self.preemption_latencies_s else None,
@@ -32,6 +38,11 @@ class SchedulerMetrics:
             "user_override_compliance": self.override_complied/self.override_tasks if self.override_tasks else None,
             "preemptions": self.preemptions,
             "switches": self.switches,
+            "override_displaced_task_projections": self.override_displaced_task_projections,
+            "override_newly_projected_misses": self.override_newly_projected_misses,
+            "override_already_projected_misses": self.override_already_projected_misses,
+            "override_missing_deadline_projections": self.override_missing_deadline_projections,
+            "override_unquantifiable_projections": self.override_unquantifiable_projections,
         }
 
 class AffectiveScheduler:
@@ -46,6 +57,7 @@ class AffectiveScheduler:
         self.use_affect=(strategy=="affective"); self.clock=clock or ManualClock(0.0); self.global_context=global_context or GlobalControlContext()
         self.tasks: dict[str,TaskRecord]={}; self.current_id: str|None=None; self.now_s=float(self.clock.now())
         self.metrics=SchedulerMetrics(); self._missed:set[str]=set(); self._preempt_times:list[float]=[]; self._override_complied:set[str]=set()
+        self.override_risk_events: list[dict] = []  # local research record, not telemetry export
     def add_task(self,spec:TaskSpec,control:ControlBias|None=None):
         if spec.task_id in self.tasks: raise ValueError(f"duplicate task_id: {spec.task_id}")
         rec=TaskRecord(spec=spec,control=control or ControlBias(effective_priority=spec.base_priority))
@@ -114,9 +126,28 @@ class AffectiveScheduler:
         score=self.config.priority_weight*priority+self.config.affect_weight*affect+self.config.deadline_weight*self._deadline_pressure(rec)
         if self.current_id and rec.spec.task_id!=self.current_id: score-=self.config.switch_penalty
         return self._global_adjust(rec,score)
+    def _is_explicit_user_override(self,rec:TaskRecord)->bool:
+        # Require BOTH the authenticated control-policy reason and the
+        # user-origin event marker, not arbitrary text/metadata alone.
+        return (
+            self.strategy=="affective"
+            and bool(rec.spec.metadata.get("explicit_override"))
+            and rec.control.should_interrupt
+            and rec.control.effective_priority=="P0"
+            and "explicit_user_immediate_hard_override" in rec.control.reasons
+        )
     def _should_preempt(self,best:TaskRecord,current:TaskRecord):
         if not current.spec.preemptible or best.spec.task_id==current.spec.task_id:
             return False
+        if self.strategy=="affective":
+            # Explicit user command is a hard control override, not a
+            # weighted score adjustment; preserve nonpreemptible tasks.
+            # Once a hard override is running, do not let ordinary
+            # background score changes interrupt it.
+            if self._is_explicit_user_override(current):
+                return False
+            if self._is_explicit_user_override(best):
+                return True
         if self.strategy=="static":
             return RANK.get(best.spec.base_priority,2) < RANK.get(current.spec.base_priority,2)
         if self.strategy=="edf":
@@ -131,6 +162,12 @@ class AffectiveScheduler:
     def _eligible(self): return [r for r in self.tasks.values() if r.status in {TaskStatus.QUEUED,TaskStatus.PAUSED}]
     def _best(self):
         rows=self._eligible()
+        if self.strategy=="affective":
+            overrides=[r for r in rows if self._is_explicit_user_override(r)]
+            if overrides:
+                # FIFO among explicit user commands; never let ordinary
+                # high-scoring tasks hide an explicit command in the queue.
+                return min(overrides,key=lambda r:(r.spec.created_at_s,r.spec.task_id))
         return max(rows,key=lambda r:(self._score(r),-r.spec.created_at_s,r.spec.task_id)) if rows else None
     def _switch_to(self,rec:TaskRecord,preempt:bool=False):
         old=self.tasks.get(self.current_id) if self.current_id else None
@@ -166,6 +203,18 @@ class AffectiveScheduler:
         if current is None or current.status!=TaskStatus.RUNNING:
             if best: self._switch_to(best)
         elif best and self._should_preempt(best,current):
+            if self._is_explicit_user_override(best):
+                projection=projected_override_risk(self.now_s,current,best)
+                self.override_risk_events.append({
+                    "displaced_task_id": current.spec.task_id,
+                    "incoming_task_id": best.spec.task_id,
+                    **projection.asdict(),
+                })
+                self.metrics.override_displaced_task_projections += 1
+                self.metrics.override_newly_projected_misses += projection.status == "newly_projected_miss"
+                self.metrics.override_already_projected_misses += projection.status == "already_projected_miss"
+                self.metrics.override_missing_deadline_projections += projection.status == "no_deadline"
+                self.metrics.override_unquantifiable_projections += projection.status == "unquantifiable"
             self._switch_to(best,preempt=True); current=self.tasks[self.current_id]
         current=self.tasks.get(self.current_id) if self.current_id else None
         if current and current.status==TaskStatus.RUNNING:

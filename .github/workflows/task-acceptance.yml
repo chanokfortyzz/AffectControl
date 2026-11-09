@@ -1,0 +1,38 @@
+name: Task Acceptance (Research)
+
+on:
+  push:
+    branches:
+      - research/bitemporal-label-audit-20261108
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    name: task (${{ matrix.os }}, ${{ matrix.case }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        case: [override-contract, swf-byte-integrity]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e ".[dev]"
+      - name: Execute frozen named-task tests
+        run: python -m benchmarks.task_acceptance run --case "${{ matrix.case }}" --out ".research-data/task-acceptance/${{ matrix.case }}"
+      - name: Archive machine-verifiable acceptance receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acceptance-${{ matrix.os }}-${{ matrix.case }}-${{ github.run_attempt }}
+          path: .research-data/task-acceptance/${{ matrix.case }}
+          if-no-files-found: error
+          retention-days: 14
