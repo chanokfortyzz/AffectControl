@@ -70,6 +70,11 @@ def parse_append(text):
     for i in range(1,len(sections)-1,2):
         match=NEW_S1.fullmatch(sections[i])
         if match is None:
+            # Never acknowledge-and-skip a malformed original S1 request.
+            # Unlike an unrelated status/reply notice, this would silently
+            # advance the input cursor and permanently lose the new task.
+            if "请求：" in sections[i] and "新任务请求（来自 S1）" in sections[i+1]:
+                raise ValueError("malformed S1 request header")
             continue  # Unrelated result/notification, never a new task.
         f={}
         for line in sections[i+1].splitlines():
@@ -79,7 +84,10 @@ def parse_append(text):
                     raise ValueError("repeated request field")
                 f[m.group(1)]=m.group(2).strip()
         if f.get("类型") != "新任务请求（来自 S1）":
-            continue
+            # A syntactically valid TASK-S1 new-request heading with an
+            # incomplete body must not advance the durable cursor: the
+            # remaining body may be appended by the source writer later.
+            raise ValueError("invalid or incomplete S1 request type")
         native=f.get("s1_ref")
         card=f.get("任务ID（建议）")
         goal=f.get("目标")

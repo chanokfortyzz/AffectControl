@@ -512,3 +512,20 @@ card, no historic request was replayed, and original VPS queue
 and Outbox SHA256 values were unchanged. The temporary directory
 was cleaned up. This is *not* an actual Sage intake receipt or
 Bus transport event. See the staged intake report. E1 remains.
+
+## Crash-recoverable private Outbox receiver (2026-11-09)
+
+sage_outbox_durable_stage.py implements a private, non-dispatching
+staging queue with an append-only Outbox high-water mark, atomic
+fsynced queue/state transitions, durable pending transaction
+journal, cross-process file locking, collision detection and
+recovery after interruption. New source header validation
+prevents incomplete S1 requests from silently advancing the
+cursor. The actual authorized Sage VPS was used for a private
+temporary-source fault-injection exercise: three interruption
+phases, three successful recoveries, exactly three staged cards,
+zero historic request replay and unchanged production source
+hashes. No production watcher, receiver key, Bus message or
+task dispatch was installed. See
+docs/sage-outbox-durable-staging-recovery-2026-11-09.md.
+E1 remains.
