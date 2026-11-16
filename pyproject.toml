@@ -22,3 +22,4 @@ testpaths=["tests"]
 [project.scripts]
 affectcontrol-pilot="affectcontrol.pilot:main"
 affectcontrol-shadow-eval="affectcontrol.shadow_eval:main"
+affectcontrol-shadow-ingest="affectcontrol.shadow_ingest:main"
