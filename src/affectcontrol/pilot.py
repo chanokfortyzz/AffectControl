@@ -180,7 +180,7 @@ class ShadowPilot:
                 "SELECT task_id FROM pilot_decisions WHERE event_id=?", (event_id,)).fetchone()
             if task is None:
                 raise ValueError("unknown event_id")
-            self.harness().outcome(task[0], success=status == "success",
+            self.harness().outcome(task[0], success=status != "failure",
                                    partial=status == "partial", now_s=time.time())
             self.db.execute(
                 "INSERT INTO pilot_outcomes(event_id,status,evidence_hash,hash_checked,created) "

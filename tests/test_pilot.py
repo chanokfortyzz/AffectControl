@@ -97,3 +97,14 @@ def test_cli_workflow(tmp_path, capsys):
     data = json.loads(capsys.readouterr().out.splitlines()[-1])
     assert data["reported_statuses"]["partial"] == 1
     assert data["independently_verified_outcomes"] == 0
+
+
+def test_partial_feedback_reduces_unresolved_tension(tmp_path):
+    with ShadowPilot(tmp_path / "p.db") as pilot:
+        pilot.decide(event_id="partial", task_id="task", text="urgent deadline submit today")
+        before = json.loads(pilot.db.execute(
+            "SELECT payload FROM pilot_states WHERE scope='task'").fetchone()[0])["tension"]
+        pilot.feedback(event_id="partial", status="partial")
+        after = json.loads(pilot.db.execute(
+            "SELECT payload FROM pilot_states WHERE scope='task'").fetchone()[0])["tension"]
+        assert 0 < after < before
