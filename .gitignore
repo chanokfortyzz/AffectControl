@@ -5,3 +5,7 @@ __pycache__/
 *.egg-info/
 *.tmp
 .DS_Store
+
+.affectcontrol/
+*.sqlite3
+*.sqlite3-*
