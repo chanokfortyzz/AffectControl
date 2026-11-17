@@ -23,3 +23,4 @@ testpaths=["tests"]
 affectcontrol-pilot="affectcontrol.pilot:main"
 affectcontrol-shadow-eval="affectcontrol.shadow_eval:main"
 affectcontrol-shadow-ingest="affectcontrol.shadow_ingest:main"
+affectcontrol-coverage-audit="affectcontrol.coverage_audit:main"
