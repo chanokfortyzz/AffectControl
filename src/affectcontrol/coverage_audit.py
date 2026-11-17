@@ -15,6 +15,11 @@ from .context_gate import normalize_context
 
 MAX_INPUT_BYTES = 256 * 1024 * 1024
 MAX_LINE_BYTES = 256 * 1024
+SNAPSHOT_HINT_FIELDS = (
+    "process_alive", "claimed", "packet_status",
+    "urgency", "salience", "arousal", "interest", "tension",
+    "goal_activation", "appraisal_provider", "appraisal_model",
+)
 CONTEXT_FIELDS = (
     "current_task_running", "current_task_preemptible", "task_blocked",
     "seconds_until_deadline", "estimated_work_seconds",
@@ -32,6 +37,7 @@ def audit(path):
     kinds = Counter()
     known_fields = Counter()
     missing = Counter()
+    snapshot_hint_presence = Counter()
     task_ids = set()
     anon_ids = set()
     rows_with_labels = 0
@@ -54,6 +60,10 @@ def audit(path):
             if not isinstance(row, dict):
                 raise ValueError(f"line {number}: record must be an object")
             counts["rows"] += 1
+            if row.get("kind") == "state_snapshot":
+                for field in SNAPSHOT_HINT_FIELDS:
+                    if field in row and row[field] is not None:
+                        snapshot_hint_presence[field] += 1
             kind = row.get("kind")
             if isinstance(kind, str):
                 kinds[kind] += 1
@@ -103,6 +113,11 @@ def audit(path):
         "explicit_override_true_rows": counts["explicit_override_true_rows"],
         "label_shape_claimed_rows_not_independently_verified": rows_with_labels,
         "recognized_preemption_event_kind_rows": recognized_preempt,
+        "snapshot_hint_coverage": {
+            "snapshot_rows": kinds.get("state_snapshot", 0),
+            "non_null_field_rows": dict(sorted(snapshot_hint_presence.items())),
+            "warning": "process_alive/claimed describe a source snapshot, not authoritative running-task interrupt permission; urgency is NOT deadline slack",
+        },
         "structured_context": {
             "explicit_context_field_rows": rows_with_context,
             "complete_rows": complete,

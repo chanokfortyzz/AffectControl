@@ -24,3 +24,8 @@
 如果五项结构化 context 不齐，AffectControl context gate 必须 abstain。其五项要求参见 context-gate.zh-CN.md。该程序对超大文件/超长行设置上限；所有结果均为 read_only_audit / NOT_APPROVED。
 
 该脚本只分析现有观测 schema 与覆盖率；任务语义、独立验证者以及生产抢占许可，仍需分别补充。
+
+
+## 已有快照元数据的可复用字段（2026-11-17）
+
+新增聚合字段 snapshot_hint_coverage：只显示 state_snapshot 内进程存活（process_alive）、已领取（claimed）、packet_status 与 urgency/salience 等字段的**非空行数**，不输出每条记录或其标识、状态原值。其目的只是找最少侵入的**未来**扩充入口。process_alive/claimed 是来源快照，不等于全局当前任务正在运行或可安全抢占；urgency 不能转换成截止期限余量。不得将这些提示字段自动填入独立的 Context Gate 五项必需字段。

@@ -102,3 +102,21 @@ def test_cli_never_emits_task_id(tmp_path, capsys):
     result = capsys.readouterr().out
     assert "private-id-do-not-leak" not in result
     assert json.loads(result)["rows"] == 1
+
+
+def test_snapshot_hints_are_counts_only_not_inferred_permission(tmp_path):
+    p = _fixture(tmp_path, [
+        _base(process_alive=True, claimed=True, packet_status="working",
+              urgency=0.9, appraisal_provider="reference"),
+        _base(anon_task_id="anon-2", process_alive=False, claimed=False,
+              packet_status="queued", urgency=None),
+    ])
+    r = audit(p)
+    hints = r["snapshot_hint_coverage"]
+    assert hints["snapshot_rows"] == 2
+    assert hints["non_null_field_rows"]["process_alive"] == 2
+    assert hints["non_null_field_rows"]["claimed"] == 2
+    assert hints["non_null_field_rows"]["urgency"] == 1
+    assert r["structured_context"]["complete_rows"] == 0
+    assert r["structured_context"]["abstain_rows"] == 2
+    assert "working" not in json.dumps(hints)
