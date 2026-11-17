@@ -321,4 +321,4 @@ MIT。
 
 ## 影子试点（不执行）
 
-已支持[本地试点](docs/pilot.zh-CN.md)、[批量导入](docs/shadow-ingest.zh-CN.md)、[配对评估](docs/shadow-evaluation.zh-CN.md)和[上下文门禁](docs/context-gate.zh-CN.md)。不接管 Sage，不证明模型优于基线。
+已支持[本地试点](docs/pilot.zh-CN.md)、[批量导入](docs/shadow-ingest.zh-CN.md)、[配对评估](docs/shadow-evaluation.zh-CN.md)和[上下文门禁](docs/context-gate.zh-CN.md)、[结果回执字节核验](docs/receipt-integrity.zh-CN.md)。不接管 Sage，不证明模型优于基线。
