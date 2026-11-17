@@ -16,6 +16,7 @@ from .memory import MemoryControl
 from .providers import KeywordRuleBaseline
 from .state import StateEngine
 from .types import AffectiveState, Event
+from .context_gate import normalize_context, assess_context
 
 SCHEMA_VERSION = 1
 PRIORITIES = {"P0", "P1", "P2", "P3"}
@@ -112,7 +113,7 @@ class ShadowPilot:
             memory=MemoryControl(MemoryPolicyConfig()),
             store=TxStateStore(self.db))
 
-    def decide(self, *, event_id, task_id, text, priority="P2", immediate=False):
+    def decide(self, *, event_id, task_id, text, priority="P2", immediate=False, context=None):
         valid_id(event_id, "event_id")
         valid_id(task_id, "task_id")
         if not isinstance(text, str) or not 1 <= len(text) <= 4000 or not text.strip():
@@ -121,8 +122,12 @@ class ShadowPilot:
             raise ValueError("priority must be P0..P3")
         if not isinstance(immediate, bool):
             raise ValueError("immediate must be boolean")
-        request_hash = digest({"task_id": task_id, "text": text,
-                               "priority": priority, "immediate": immediate})
+        clean_context = normalize_context(context)
+        request = {"task_id": task_id, "text": text,
+                   "priority": priority, "immediate": immediate}
+        if context is not None:
+            request["context"] = clean_context
+        request_hash = digest(request)
         with self.transaction():
             prior = self.db.execute(
                 "SELECT request_hash,response FROM pilot_decisions WHERE event_id=?", (event_id,)).fetchone()
@@ -144,6 +149,7 @@ class ShadowPilot:
                              "should_interrupt": immediate or urgency >= .75},
                 "state_step": value["state"].step,
                 "explicit_user_override": immediate,
+                "operational_gate": assess_context(clean_context, explicit_user_immediate=immediate),
             }
             self.db.execute(
                 "INSERT INTO pilot_decisions(event_id,task_id,request_hash,response,created) "
@@ -215,6 +221,12 @@ class ShadowPilot:
             "reported_statuses": {s: sum(x[0] == s for x in outcomes) for s in sorted(STATUSES)},
             "artifact_hash_checks": sum(x[1] for x in outcomes),
             "independently_verified_outcomes": 0,
+            "context_gate": {
+                "abstained": sum(d.get("operational_gate", {}).get("verdict", "unknown") == "abstain" for d in decisions),
+                "not_evaluated_legacy": sum("operational_gate" not in d for d in decisions),
+                "safety_holds": sum(d.get("operational_gate", {}).get("verdict") == "safety_hold" for d in decisions),
+                "proposed_interruptions": sum(d.get("operational_gate", {}).get("verdict") == "propose_interrupt" for d in decisions),
+            },
         }
 
 def main(argv=None):
@@ -227,6 +239,7 @@ def main(argv=None):
     d.add_argument("--text", required=True)
     d.add_argument("--priority", choices=sorted(PRIORITIES), default="P2")
     d.add_argument("--immediate", action="store_true")
+    d.add_argument("--context-file", help="local UTF-8 JSON context; no secrets")
     f = sub.add_parser("feedback")
     f.add_argument("--event-id", required=True)
     f.add_argument("--status", choices=sorted(STATUSES), required=True)
@@ -237,8 +250,15 @@ def main(argv=None):
     try:
         with ShadowPilot(args.db) as pilot:
             if args.command == "decide":
+                context = None
+                if args.context_file is not None:
+                    context_path = Path(args.context_file)
+                    if context_path.stat().st_size > 8192:
+                        raise ValueError("context file exceeds 8 KiB")
+                    context = json.loads(context_path.read_text(encoding="utf-8"))
                 result = pilot.decide(event_id=args.event_id, task_id=args.task_id,
-                                      text=args.text, priority=args.priority, immediate=args.immediate)
+                                      text=args.text, priority=args.priority, immediate=args.immediate,
+                                      context=context)
             elif args.command == "feedback":
                 result = pilot.feedback(event_id=args.event_id, status=args.status,
                                         evidence_file=args.evidence_file, expected_sha256=args.expected_sha256)

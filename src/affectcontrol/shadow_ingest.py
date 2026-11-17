@@ -7,9 +7,10 @@ import os
 import sys
 from pathlib import Path
 
-from .pilot import ShadowPilot
+from .pilot import ShadowPilot, valid_id
+from .context_gate import normalize_context
 
-ALLOWED = frozenset({"event_id", "task_id", "text", "priority", "immediate"})
+ALLOWED = frozenset({"event_id", "task_id", "text", "priority", "immediate", "context"})
 MAX_BYTES = 1024 * 1024
 MAX_ROWS = 1000
 
@@ -23,6 +24,10 @@ def _validate(row, number, *, allow_immediate=False):
     for k in ("event_id", "task_id", "text"):
         if not isinstance(row.get(k), str):
             raise ValueError(f"line {number}: {k} must be string")
+    valid_id(row["event_id"], "event_id")
+    valid_id(row["task_id"], "task_id")
+    if not 1 <= len(row["text"]) <= 4000 or not row["text"].strip():
+        raise ValueError(f"line {number}: invalid text")
     priority = row.get("priority", "P2")
     if priority not in ("P0", "P1", "P2", "P3"):
         raise ValueError(f"line {number}: priority invalid")
@@ -32,10 +37,13 @@ def _validate(row, number, *, allow_immediate=False):
     if immediate and not allow_immediate:
         raise ValueError(
             f"line {number}: explicit immediate requires --allow-explicit-user-immediate")
-    return {
+    clean = {
         "event_id": row["event_id"], "task_id": row["task_id"],
         "text": row["text"], "priority": priority, "immediate": immediate,
     }
+    if "context" in row:
+        clean["context"] = normalize_context(row["context"])
+    return clean
 
 
 def read_input(path, *, allow_immediate=False):
@@ -96,16 +104,17 @@ def run(db, input_path, *, output=None, allow_immediate=False):
             print(line)
     else:
         target.parent.mkdir(parents=True, exist_ok=True)
-        # Exclusive creation + atomic rename prevents output truncation.
+        # Hard-link is exclusive creation; os.replace would overwrite racing writers.
         temp = target.with_name(target.name + f".{os.getpid()}.tmp")
         try:
             with temp.open("x", encoding="utf-8") as f:
                 f.write(encoded)
                 f.flush()
                 os.fsync(f.fileno())
-            if target.exists():
-                raise ValueError("output exists (concurrent writer)")
-            os.replace(temp, target)
+            try:
+                os.link(temp, target)
+            except FileExistsError as e:
+                raise ValueError("output exists (concurrent writer)") from e
         finally:
             temp.unlink(missing_ok=True)
     return {

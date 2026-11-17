@@ -310,3 +310,7 @@ Read [SECURITY.md](SECURITY.md). High urgency or affective activation never auth
 ## License
 
 MIT.
+
+## Shadow-only pilot
+
+See [Pilot](docs/pilot.zh-CN.md), [Batch](docs/shadow-ingest.zh-CN.md), [Evaluation](docs/shadow-evaluation.zh-CN.md), [Context gate](docs/context-gate.zh-CN.md). No dispatch, no production authorization or validated superiority.

@@ -119,6 +119,8 @@ def evaluate(db, labels_path, *, minimum=20):
 
     paired = []
     explicit = []
+    contextual = []
+    context_verdicts = Counter()
     verified = 0
     for event_id, label in labels.items():
         task_id, prediction = decisions[event_id]
@@ -130,10 +132,15 @@ def evaluate(db, labels_path, *, minimum=20):
             "affective": bool(prediction["recommendation"]["should_interrupt"]),
             "baseline": bool(prediction["baseline"]["should_interrupt"]),
         }
+        gate = prediction.get("operational_gate")
+        verdict = gate.get("verdict", "unknown") if isinstance(gate, dict) else "legacy_unmeasured"
+        context_verdicts[verdict] += 1
         if prediction["explicit_user_override"]:
             explicit.append(pair)
         else:
             paired.append(pair)
+            if verdict not in {"abstain", "legacy_unmeasured", "unknown"}:
+                contextual.append({**pair, "context": verdict == "propose_interrupt"})
     def performance(rows):
         a, b = _stats(rows, "affective"), _stats(rows, "baseline")
         return {
@@ -167,6 +174,17 @@ def evaluate(db, labels_path, *, minimum=20):
                 if explicit else None,
             "baseline_compliance": sum(p["baseline"] for p in explicit) / len(explicit)
                 if explicit else None,
+        },
+        "context_gate": {
+            "verdict_counts": dict(sorted(context_verdicts.items())),
+            "non_override_coverage": len(contextual) / len(paired) if paired else 0.0,
+            "non_override_eligible": len(contextual),
+            "matched_subset": {
+                "context_gate": _stats(contextual, "context"),
+                "affective": _stats(contextual, "affective"),
+                "urgency_only": _stats(contextual, "baseline"),
+            },
+            "warning": "context baseline is not the affect policy; compare only on same eligible subset",
         },
         "distinct_tasks_with_labels": len(set(p["task_id"] for p in paired + explicit)),
         "minimum_non_override_samples": minimum,
